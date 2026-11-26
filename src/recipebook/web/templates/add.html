@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Add recipes · Recipe Book{% endblock %}
+{% block main %}
+<h1>Add recipes</h1>
+{% if problem %}<p class="error">{{ problem }}</p>{% endif %}
+
+<form method="post" action="/add" enctype="multipart/form-data" class="recipe-form">
+  <label class="wide">Web addresses <span class="hint">One per line.</span>
+    <textarea name="urls" rows="4" placeholder="https://…"></textarea>
+  </label>
+
+  <fieldset>
+    <legend>Photos and PDFs</legend>
+    <label class="wide">Files <span class="hint">JPEG, PNG, HEIC, or PDF. Choose as many as you like.</span>
+      <input type="file" name="files" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.pdf,image/*,application/pdf">
+    </label>
+    <label class="check"><input type="checkbox" name="one_recipe" value="1">
+      These photos are one recipe <span class="hint">For a recipe that runs across two or more pages. Otherwise each photo is read on its own.</span>
+    </label>
+    <div class="row four">
+      <label>PDF pages <span class="hint">Optional</span>
+        <input name="pages" placeholder="3-7">
+      </label>
+      <label class="span3 note-label">A PDF intake covers up to 10 pages. For a longer PDF, give a page range.</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>From a cookbook? <span class="hint">Applies to every photo and PDF in this batch.</span></legend>
+    <div class="row">
+      <label>Cookbook title <input name="cookbook_title"></label>
+      <label>Author <input name="cookbook_author"></label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Read with</legend>
+    <label class="check"><input type="radio" name="structurer" value="local" {{ 'checked' if default_structurer != 'claude' }}>
+      Local model <span class="hint">Runs on this Mac through Ollama. Nothing leaves your computer.</span></label>
+    <label class="check"><input type="radio" name="structurer" value="claude" {{ 'checked' if default_structurer == 'claude' }}>
+      Claude <span class="hint">More accurate on photos and tricky layouts. Sends the item to Anthropic.{% if not has_key %} Needs a key: add one in <a href="/settings">Settings</a>.{% endif %}</span></label>
+  </fieldset>
+
+  <div class="actions">
+    <button type="submit" class="button primary">Add to queue</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block head %}{% if active %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block title %}Queue · Recipe Book{% endblock %}
+{% block main %}
+<h1>Queue</h1>
+
+{% if waiting %}
+<p class="error"><strong>{{ waiting.message }}</strong> {{ waiting.advice }}
+  Items waiting on it will start by themselves once it is available.</p>
+{% endif %}
+
+{% if not rows %}
+<div class="empty">
+  <p>Nothing has been added yet.</p>
+  <p><a class="button primary" href="/add">Add recipes</a></p>
+</div>
+{% else %}
+<ul class="jobs">
+{% for job, drafts in rows %}
+  <li class="job {{ job.state }}">
+    <div class="job-head">
+      <span class="state {{ job.state }}">{{ {'queued': 'Queued', 'reading': 'Reading', 'structuring': 'Structuring', 'waiting': 'Waiting', 'done': 'Done', 'failed': 'Failed'}[job.state] }}</span>
+      <span class="job-label">{{ job.label }}</span>
+      <span class="via">{{ 'Claude' if job.structurer == 'claude' else 'Local model' }}</span>
+    </div>
+    {% if job.state == 'failed' %}
+      <p class="reason"><strong>{{ job.message }}</strong> {{ job.advice }}</p>
+    {% elif job.state == 'waiting' %}
+      <p class="reason">{{ job.message }} {{ job.advice }}</p>
+    {% endif %}
+    {% if drafts %}
+    <ul class="drafts">
+      {% for draft in drafts %}
+      <li>
+        {% if draft.state == 'needs_review' %}
+          <a class="button primary small" href="/drafts/{{ draft.id }}">Review</a>
+          <span>{{ draft.recipe.title }}</span>
+          {% set warnings = draft.recipe.flags | selectattr('severity', 'equalto', 'warning') | list | length %}
+          {% if warnings %}<span class="flagcount">{{ warnings }} to check</span>{% endif %}
+        {% elif draft.state == 'saved' %}
+          <span class="state done">Saved</span>
+          <a href="/recipes/{{ draft.recipe_id }}">{{ draft.recipe.title }}</a>
+          <span class="rid">No. {{ draft.recipe_id }}</span>
+        {% else %}
+          <span class="state">Discarded</span> <span class="struck">{{ draft.recipe.title }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <div class="job-actions">
+      {% if job.state in ('failed', 'done') %}
+        {% if job.structurer != 'claude' %}
+        <form method="post" action="/jobs/{{ job.id }}/retry"><input type="hidden" name="structurer" value="claude">
+          <button class="link" type="submit" {{ 'disabled title="Add a Claude key in Settings first"' | safe if not has_key }}>Retry with Claude</button></form>
+        {% endif %}
+        <form method="post" action="/jobs/{{ job.id }}/retry"><input type="hidden" name="structurer" value="{{ job.structurer }}">
+          <button class="link" type="submit">Run again</button></form>
+      {% endif %}
+      <form method="post" action="/jobs/{{ job.id }}/delete"
+            onsubmit="return confirm('Remove this item from the queue? Saved recipes and original files are kept.');">
+        <button class="link danger" type="submit">Remove</button></form>
+    </div>
+  </li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

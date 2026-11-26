@@ -8,7 +8,8 @@
 {% if total == 0 %}
 <div class="empty">
   <p>No recipes yet.</p>
-  <p><a class="button" href="/recipes/new">Add your first recipe</a></p>
+  <p><a class="button primary" href="/add">Add recipes from the web, PDFs, or photos</a>
+     <a class="button" href="/recipes/new">Type one in</a></p>
 </div>
 {% else %}
 <p class="count">{{ total }} recipe{{ '' if total == 1 else 's' }}</p>

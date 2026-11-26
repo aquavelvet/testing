@@ -1,8 +1,11 @@
-"""The local web app: library, recipe form, PDF preview and export."""
+"""The local web app: library, recipe form, intake (add, queue, review), settings, PDFs."""
 
 from __future__ import annotations
 
+import mimetypes
 import re
+import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -13,14 +16,22 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from ..config import Home, default_home
+from ..intake.jobs import Job, JobStore
+from ..intake.ocr import default_ocr
+from ..intake.pipeline import Pipeline, Worker, finish_draft
+from ..intake.structure import DEFAULT_LOCAL_MODEL, ClaudeStructurer, LocalStructurer
 from ..library import Library
 from ..model import Recipe
 from ..render.pdf import render_recipe_pdf
+from ..secrets import KeychainStore
+from ..style.glossary import GlossaryEntry
 from ..style.housestyle import apply_house_style
 from .forms import form_from_recipe, recipe_from_form
 
 HERE = Path(__file__).parent
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
+PHOTO_TYPES = {".jpg", ".jpeg", ".png", ".heic", ".heif"}
+ACTIVE_STATES = ("queued", "reading", "structuring")
 
 _env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(HERE / "templates"),
@@ -39,12 +50,57 @@ def pdf_filename(recipe: Recipe) -> str:
     return f"{number}{_slug(recipe.title)}.pdf"
 
 
-def create_app(home: Home | None = None, extra_hosts: frozenset[str] = frozenset()) -> FastAPI:
+def glossary_to_text(entries) -> str:
+    return "\n".join(f"{e.preferred}: {', '.join(e.variants)}" for e in entries)
+
+
+def glossary_from_text(text: str) -> list[GlossaryEntry]:
+    """One entry per line: 'preferred name: variant, variant'."""
+    entries = []
+    for line in (text or "").splitlines():
+        preferred, _, variants = line.partition(":")
+        preferred = preferred.strip()
+        if preferred:
+            entries.append(GlossaryEntry(preferred, tuple(v.strip() for v in variants.split(",") if v.strip())))
+    return entries
+
+
+def create_app(
+    home: Home | None = None,
+    extra_hosts: frozenset[str] = frozenset(),
+    *,
+    ocr=None,
+    key_store=None,
+    structurer_for=None,
+    url_client=None,
+    start_worker: bool = True,
+) -> FastAPI:
     home = (home or default_home()).ensure()
     library = Library(home.database)
+    jobs = JobStore(home.database)
+    keys = key_store or KeychainStore()
     allowed_hosts = LOCAL_HOSTS | set(extra_hosts)
 
-    app = FastAPI(title="Recipe Book", docs_url=None, redoc_url=None, openapi_url=None)
+    def default_structurer_for(name: str):
+        if name == "claude":
+            return ClaudeStructurer(api_key=keys.get())
+        return LocalStructurer(model=library.get_setting("local_model", DEFAULT_LOCAL_MODEL))
+
+    pipeline = Pipeline(jobs, library, home.originals, ocr or default_ocr(),
+                        structurer_for or default_structurer_for, url_client=url_client)
+    worker = Worker(pipeline)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        if start_worker:
+            worker.start()
+        yield
+        if start_worker:
+            worker.stop()
+
+    app = FastAPI(title="Recipe Book", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+    app.state.pipeline = pipeline
+    app.state.jobs = jobs
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     @app.middleware("http")
@@ -64,6 +120,7 @@ def create_app(home: Home | None = None, extra_hosts: frozenset[str] = frozenset
         return await call_next(request)
 
     def page(name: str, status: int = 200, **context) -> HTMLResponse:
+        context.setdefault("review_count", jobs.needing_review())
         return HTMLResponse(_env.get_template(name).render(**context), status_code=status)
 
     @app.exception_handler(HTTPException)
@@ -83,6 +140,18 @@ def create_app(home: Home | None = None, extra_hosts: frozenset[str] = frozenset
         if recipe is None:
             raise HTTPException(status_code=404, detail=f"There is no recipe No. {recipe_id}.")
         return recipe
+
+    def require_job(job_id: int) -> Job:
+        job = jobs.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="That item is no longer in the queue.")
+        return job
+
+    def require_draft(draft_id: int):
+        draft = jobs.get_draft(draft_id)
+        if draft is None:
+            raise HTTPException(status_code=404, detail="That draft no longer exists.")
+        return draft
 
     # ---- library ----
 
@@ -162,5 +231,164 @@ def create_app(home: Home | None = None, extra_hosts: frozenset[str] = frozenset
         disposition = "attachment" if download else "inline"
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition": f'{disposition}; filename="{name}"'})
+
+    # ---- intake: add ----
+
+    def add_page(status: int = 200, **context) -> HTMLResponse:
+        return page("add.html", status, default_structurer=library.get_setting("default_structurer", "local"),
+                    has_key=bool(keys.get()), **context)
+
+    @app.get("/add", response_class=HTMLResponse)
+    def add_form():
+        return add_page()
+
+    @app.post("/add")
+    async def add_items(request: Request):
+        form = await request.form()
+        structurer = "claude" if form.get("structurer") == "claude" else "local"
+        cookbook = dict(cookbook_title=(form.get("cookbook_title") or "").strip() or None,
+                        cookbook_author=(form.get("cookbook_author") or "").strip() or None)
+        new_jobs: list[Job] = []
+
+        for line in (form.get("urls") or "").splitlines():
+            if line.strip():
+                new_jobs.append(Job(kind="url", label=line.strip(), url=line.strip(), structurer=structurer))
+
+        photos: list[tuple[str, str]] = []
+        rejected: list[str] = []
+        for upload in form.getlist("files"):
+            name = Path(getattr(upload, "filename", "") or "").name
+            if not name:
+                continue
+            suffix = Path(name).suffix.lower()
+            if suffix != ".pdf" and suffix not in PHOTO_TYPES:
+                rejected.append(name)
+                continue
+            target = home.originals / f"{uuid.uuid4().hex[:8]}-{_slug(Path(name).stem)}{suffix}"
+            target.write_bytes(await upload.read())
+            if suffix == ".pdf":
+                new_jobs.append(Job(kind="pdf", label=name, files=[str(target)], structurer=structurer,
+                                    pages=(form.get("pages") or "").strip(), **cookbook))
+            else:
+                photos.append((name, str(target)))
+        if photos and form.get("one_recipe"):
+            label = photos[0][0] if len(photos) == 1 else f"{photos[0][0]} and {len(photos) - 1} more"
+            new_jobs.append(Job(kind="photo", label=label, files=[p for _, p in photos], structurer=structurer, **cookbook))
+        else:
+            new_jobs += [Job(kind="photo", label=name, files=[path], structurer=structurer, **cookbook)
+                         for name, path in photos]
+
+        if not new_jobs:
+            problem = (f"These files are not photos or PDFs: {', '.join(rejected)}." if rejected
+                       else "Paste at least one web address, or choose at least one photo or PDF.")
+            return add_page(status=422, problem=problem)
+        for job in new_jobs:
+            jobs.add(job)
+        worker.wake()
+        return RedirectResponse("/queue", status_code=303)
+
+    # ---- intake: queue ----
+
+    @app.get("/queue", response_class=HTMLResponse)
+    def queue_page():
+        rows = [(job, jobs.drafts_for(job.id)) for job in jobs.list()]
+        active = any(job.state in ACTIVE_STATES for job, _ in rows)
+        waiting = next((job for job, _ in rows if job.state == "waiting"), None)
+        return page("queue.html", rows=rows, active=active or waiting is not None, waiting=waiting,
+                    has_key=bool(keys.get()))
+
+    @app.post("/jobs/{job_id}/retry")
+    async def retry_job(job_id: int, request: Request):
+        require_job(job_id)
+        form = await request.form()
+        jobs.retry(job_id, "claude" if form.get("structurer") == "claude" else "local")
+        worker.wake()
+        return RedirectResponse("/queue", status_code=303)
+
+    @app.post("/jobs/{job_id}/delete")
+    def delete_job(job_id: int):
+        require_job(job_id)
+        jobs.delete(job_id)  # originals stay on disk
+        return RedirectResponse("/queue", status_code=303)
+
+    # ---- intake: review ----
+
+    def review_page(draft, form: dict, status: int = 200, **context) -> HTMLResponse:
+        job = jobs.get(draft.job_id)
+        images = [Path(f).name for f in (job.material.images if job and job.material else [])]
+        return page("review.html", status, draft=draft, job=job, form=form, images=images,
+                    original_text=draft.recipe.original_text, flags=draft.recipe.flags,
+                    categories=library.categories(), has_key=bool(keys.get()), **context)
+
+    @app.get("/drafts/{draft_id}", response_class=HTMLResponse)
+    def review_draft(draft_id: int):
+        draft = require_draft(draft_id)
+        if draft.state == "saved" and draft.recipe_id:
+            return RedirectResponse(f"/recipes/{draft.recipe_id}", status_code=303)
+        return review_page(draft, form_from_recipe(draft.recipe))
+
+    @app.post("/drafts/{draft_id}")
+    async def save_draft(draft_id: int, request: Request):
+        draft = require_draft(draft_id)
+        if draft.state == "saved" and draft.recipe_id:
+            return RedirectResponse(f"/recipes/{draft.recipe_id}", status_code=303)
+        form = dict(await request.form())
+        recipe = finish_draft(recipe_from_form(form, draft.recipe), draft.recipe.original_text, library.glossary())
+        if form.get("action") == "check":  # keep the edits and re-run the checks without saving
+            jobs.update_draft(draft_id, recipe)
+            return RedirectResponse(f"/drafts/{draft_id}", status_code=303)
+        missing = recipe.missing_for_save()
+        if missing:
+            return review_page(draft, form, status=422, missing=missing)
+        saved = library.save(recipe.model_copy(update={"id": None, "flags": []}))
+        jobs.mark_draft(draft_id, "saved", recipe_id=saved.id)
+        return RedirectResponse(f"/recipes/{saved.id}?saved=1", status_code=303)
+
+    @app.post("/drafts/{draft_id}/discard")
+    def discard_draft(draft_id: int):
+        require_draft(draft_id)
+        jobs.mark_draft(draft_id, "discarded")  # the original file is kept
+        return RedirectResponse("/queue", status_code=303)
+
+    @app.get("/originals/{name}")
+    def original_file(name: str):
+        """Serve a kept original (photo, page image, PDF). Web snapshots are served as plain text."""
+        path = home.originals / Path(name).name
+        if Path(name).name != name or not path.is_file():
+            raise HTTPException(status_code=404, detail="That original file is not here.")
+        kind = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        if not kind.startswith("image/") and kind != "application/pdf":
+            kind = "text/plain; charset=utf-8"
+        return Response(path.read_bytes(), media_type=kind, headers={"X-Content-Type-Options": "nosniff"})
+
+    # ---- settings ----
+
+    def settings_page(status: int = 200, **context) -> HTMLResponse:
+        return page("settings.html", status, categories=library.categories(),
+                    glossary=glossary_to_text(library.glossary()),
+                    local_model=library.get_setting("local_model", DEFAULT_LOCAL_MODEL),
+                    default_structurer=library.get_setting("default_structurer", "local"),
+                    has_key=bool(keys.get()), **context)
+
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_form(saved: str = ""):
+        return settings_page(saved=bool(saved))
+
+    @app.post("/settings")
+    async def save_settings(request: Request):
+        form = await request.form()
+        try:
+            library.set_categories([str(name) for name in form.getlist("category")])
+        except ValueError:
+            return settings_page(status=422, problem="Categories need five different names, none empty.")
+        library.set_glossary(glossary_from_text(form.get("glossary") or ""))
+        library.set_setting("local_model", (form.get("local_model") or "").strip() or DEFAULT_LOCAL_MODEL)
+        library.set_setting("default_structurer", "claude" if form.get("default_structurer") == "claude" else "local")
+        new_key = (form.get("claude_key") or "").strip()
+        if form.get("clear_key"):
+            keys.clear()
+        elif new_key:
+            keys.set(new_key)
+        return RedirectResponse("/settings?saved=1", status_code=303)
 
     return app

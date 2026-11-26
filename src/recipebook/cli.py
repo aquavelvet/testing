@@ -84,6 +84,8 @@ def doctor() -> int:
 
     for ok, name, detail in results:
         print(f"{'ok  ' if ok else 'FAIL'}  {name}: {detail}")
+    for name, detail in _intake_notes():
+        print(f"note  {name}: {detail}")
     failed = [name for ok, name, _ in results if not ok]
     if failed:
         print("\nIf the PDF engine failed on a Mac:")
@@ -93,6 +95,34 @@ def doctor() -> int:
         return 1
     print("\nEverything this version needs is working.")
     return 0
+
+
+def _intake_notes() -> list[tuple[str, str]]:
+    """Optional pieces for reading recipes. Missing ones limit features but do not stop the app."""
+    from .intake.structure import DEFAULT_LOCAL_MODEL, LocalStructurer, StructurerUnavailable
+    from .library import Library
+    from .secrets import KeychainStore
+
+    notes = []
+    if sys.platform == "darwin":
+        try:
+            import ocrmac  # noqa: F401
+
+            notes.append(("Text recognition", "Apple Vision is available"))
+        except Exception as error:
+            notes.append(("Text recognition", f"not available ({type(error).__name__}); photos will need Claude"))
+    else:
+        notes.append(("Text recognition", "needs macOS; on this machine photos and scans need Claude"))
+    try:
+        model = Library(default_home().ensure().database).get_setting("local_model", DEFAULT_LOCAL_MODEL)
+        LocalStructurer(model=model).check()
+        notes.append(("Local model", f"Ollama is running with {model}"))
+    except StructurerUnavailable as error:
+        notes.append(("Local model", f"{error} {error.fix}"))
+    except Exception as error:
+        notes.append(("Local model", f"could not be checked ({type(error).__name__})"))
+    notes.append(("Claude key", "saved" if KeychainStore().get() else "none saved; add one in Settings to use Claude"))
+    return notes
 
 
 def main(argv: list[str] | None = None) -> int:

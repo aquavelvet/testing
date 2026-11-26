@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Review · {{ draft.recipe.title }} · Recipe Book{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block main %}
+<div class="heading">
+  <h1>Review: {{ draft.recipe.title or 'Untitled' }}</h1>
+  <span class="via">Read by {{ 'Claude' if draft.recipe.structured_by == 'claude' else 'the local model' }}</span>
+</div>
+
+{% if missing %}<p class="error">Not saved yet. Still needed: {{ missing | join(', ') }}.</p>{% endif %}
+
+{% if flags %}
+<ul class="flags">
+  {% for flag in flags %}<li class="{{ flag.severity }}">{{ flag.message }}</li>{% endfor %}
+</ul>
+{% else %}
+<p class="notice">No amounts changed between the original and this draft.</p>
+{% endif %}
+
+<div class="review">
+  <section class="original">
+    <h2>Original</h2>
+    {% for image in images %}<a href="/originals/{{ image }}" target="_blank" rel="noopener"><img src="/originals/{{ image }}" alt="Original page {{ loop.index }}"></a>{% endfor %}
+    {% if original_text %}
+    <details {{ 'open' if not images }}><summary>Text that was read</summary><pre>{{ original_text }}</pre></details>
+    {% endif %}
+  </section>
+
+  <section class="draft">
+    <form method="post" action="/drafts/{{ draft.id }}" class="recipe-form">
+      {% include "_recipe_fields.html" %}
+      <div class="actions">
+        <button type="submit" class="button primary">Save to library</button>
+        <button type="submit" class="button" name="action" value="check">Re-check amounts</button>
+        <button type="submit" class="button" formaction="/recipes/preview" formtarget="_blank" formnovalidate>Preview PDF</button>
+      </div>
+    </form>
+    <div class="job-actions spaced">
+      {% if draft.recipe.structured_by != 'claude' %}
+      <form method="post" action="/jobs/{{ draft.job_id }}/retry"><input type="hidden" name="structurer" value="claude">
+        <button class="link" type="submit" {{ 'disabled title="Add a Claude key in Settings first"' | safe if not has_key }}>Retry with Claude</button></form>
+      {% endif %}
+      <form method="post" action="/drafts/{{ draft.id }}/discard"
+            onsubmit="return confirm('Discard this draft? The original file is kept.');">
+        <button class="link danger" type="submit">Discard</button></form>
+    </div>
+  </section>
+</div>
+{% include "_source_script.html" %}
+{% endblock %}

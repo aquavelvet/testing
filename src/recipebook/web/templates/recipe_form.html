@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe.title if recipe else 'New recipe' }} · Recipe Book{% endblock %}
+{% block main %}
+<div class="heading">
+  <h1>{% if recipe %}{{ recipe.title }}{% else %}New recipe{% endif %}</h1>
+  {% if recipe %}<span class="rid big">No. {{ recipe.id }}</span>{% endif %}
+</div>
+
+{% if saved %}<p class="notice">Saved. House style was applied to the ingredient lines and directions below.</p>{% endif %}
+{% if missing %}
+<p class="error">Not saved yet. Still needed: {{ missing | join(', ') }}.</p>
+{% endif %}
+
+<form method="post" action="{{ '/recipes/' ~ recipe.id if recipe else '/recipes' }}" class="recipe-form">
+  {% if recipe %}<input type="hidden" name="recipe_id" value="{{ recipe.id }}">{% endif %}
+
+  <label class="wide">Title
+    <input name="title" value="{{ form.title }}" required autofocus>
+  </label>
+
+  <label class="wide">Headnote <span class="hint">One or two sentences about the dish. Optional.</span>
+    <textarea name="headnote" rows="2">{{ form.headnote }}</textarea>
+  </label>
+
+  <div class="row">
+    <label>Category
+      <select name="category">
+        {% for name in categories %}<option {{ 'selected' if name == form.category }}>{{ name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Tags <span class="hint">Separate with commas</span>
+      <input name="tags" value="{{ form.tags }}" placeholder="Fall, Thanksgiving, Make-ahead">
+    </label>
+  </div>
+
+  <div class="row four">
+    <label>Yield
+      <select name="yield_label">
+        {% for option in ['Serves', 'Makes'] %}<option {{ 'selected' if option == form.yield_label }}>{{ option }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Amount
+      <input name="yield_value" value="{{ form.yield_value }}" placeholder="8, or About 2 cups">
+    </label>
+    <label>Active time
+      <input name="active_time" value="{{ form.active_time }}" placeholder="25 minutes">
+    </label>
+    <label>Total time
+      <input name="total_time" value="{{ form.total_time }}" placeholder="1 hour 45 minutes">
+    </label>
+  </div>
+
+  <div class="row">
+    <label>Ingredients
+      <span class="hint">One per line. A line ending in a colon starts a group, like “For the topping:”.</span>
+      <textarea name="ingredients" rows="18" required>{{ form.ingredients }}</textarea>
+    </label>
+    <label>Directions
+      <span class="hint">One step per paragraph; leave a blank line between steps. A short phrase before a colon, like “Make the topping:”, prints in bold.</span>
+      <textarea name="directions" rows="18" required>{{ form.directions }}</textarea>
+    </label>
+  </div>
+
+  <label class="wide">Cook’s note <span class="hint">Tips, substitutions, storage. Optional.</span>
+    <textarea name="note" rows="2">{{ form.note }}</textarea>
+  </label>
+
+  <fieldset>
+    <legend>Source</legend>
+    <div class="row four">
+      <label>Kind
+        <select name="source_kind">
+          {% for value, text in [('web', 'Website'), ('cookbook', 'Cookbook'), ('other', 'Other')] %}
+          <option value="{{ value }}" {{ 'selected' if value == form.source_kind }}>{{ text }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="span3" data-kind="web">Web address
+        <input name="source_url" value="{{ form.source_url }}" placeholder="https://…">
+      </label>
+      <label data-kind="cookbook">Cookbook title
+        <input name="source_title" value="{{ form.source_title }}">
+      </label>
+      <label data-kind="cookbook">Author
+        <input name="source_author" value="{{ form.source_author }}">
+      </label>
+      <label data-kind="cookbook">Page
+        <input name="source_page" value="{{ form.source_page }}">
+      </label>
+      <label class="span3" data-kind="other">Description
+        <input name="source_label" value="{{ form.source_label }}" placeholder="Handwritten family recipe card">
+      </label>
+    </div>
+  </fieldset>
+
+  <div class="actions">
+    <button type="submit" class="button primary">Save{{ '' if recipe else ' to library' }}</button>
+    <button type="submit" class="button" formaction="/recipes/preview" formtarget="_blank" formnovalidate>Preview PDF</button>
+    {% if recipe %}
+    <a class="button" href="/recipes/{{ recipe.id }}/pdf?download=1">Export PDF</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if recipe %}
+<form method="post" action="/recipes/{{ recipe.id }}/delete" class="delete"
+      onsubmit="return confirm('Delete recipe No. {{ recipe.id }}? Its number will not be used again.');">
+  <button type="submit" class="link danger">Delete this recipe</button>
+</form>
+{% endif %}
+
+<script>
+  // Show only the source fields that match the chosen kind.
+  (function () {
+    var kind = document.querySelector('select[name="source_kind"]');
+    function update() {
+      document.querySelectorAll('[data-kind]').forEach(function (label) {
+        label.hidden = label.dataset.kind !== kind.value;
+      });
+    }
+    kind.addEventListener('change', update);
+    update();
+  })();
+</script>
+{% endblock %}

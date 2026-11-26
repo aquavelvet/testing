@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Library · Recipe Book{% endblock %}
+{% block main %}
+<h1>Library</h1>
+
+{% if deleted %}<p class="notice">Recipe No. {{ deleted }} was deleted. Its number will not be used again.</p>{% endif %}
+
+{% if total == 0 %}
+<div class="empty">
+  <p>No recipes yet.</p>
+  <p><a class="button" href="/recipes/new">Add your first recipe</a></p>
+</div>
+{% else %}
+<p class="count">{{ total }} recipe{{ '' if total == 1 else 's' }}</p>
+{% for name, recipes in sections %}
+<section class="category">
+  <h2>{{ name }} <span class="n">{{ recipes | length }}</span></h2>
+  {% if recipes %}
+  <ul class="recipes">
+    {% for r in recipes %}
+    <li>
+      <span class="rid">No. {{ r.id }}</span>
+      <a class="name" href="/recipes/{{ r.id }}">{{ r.title }}</a>
+      <a class="pdf" href="/recipes/{{ r.id }}/pdf" target="_blank" rel="noopener">PDF</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="none">Nothing here yet.</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

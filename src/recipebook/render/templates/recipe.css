@@ -1,0 +1,97 @@
+/* Recipe page styles. Page size, margins, footers, and body size are set per render
+   in recipe.html.j2; everything else lives here. */
+
+@font-face { font-family: "Display"; font-weight: 600; font-style: normal;
+  src: url("../fonts/CormorantGaramond-SemiBold.ttf"); }
+@font-face { font-family: "Display"; font-weight: 500; font-style: italic;
+  src: url("../fonts/CormorantGaramond-MediumItalic.ttf"); }
+@font-face { font-family: "Body"; font-weight: 400; font-style: normal;
+  src: url("../fonts/SourceSerif4-Regular.ttf"); }
+@font-face { font-family: "Body"; font-weight: 400; font-style: italic;
+  src: url("../fonts/SourceSerif4-Italic.ttf"); }
+@font-face { font-family: "Body"; font-weight: 600; font-style: normal;
+  src: url("../fonts/SourceSerif4-SemiBold.ttf"); }
+@font-face { font-family: "Label"; font-weight: 400; font-style: normal;
+  src: url("../fonts/Jost-Regular.ttf"); }
+@font-face { font-family: "Label"; font-weight: 500; font-style: normal;
+  src: url("../fonts/Jost-Medium.ttf"); }
+
+:root {
+  --ink: #2b2b2b;
+  --soft: #5a5a5a;
+  --accent: #4b7264;
+  --tint: #edf3f0;
+  --rule: #c9d6d0;
+}
+
+html { color: var(--ink); font-family: "Body"; line-height: 1.38; }
+body { margin: 0; }
+
+.label {
+  font-family: "Label"; font-weight: 500; font-size: 7pt; text-transform: uppercase;
+  letter-spacing: 0.22em; color: var(--accent); margin: 0 0 2.5mm;
+}
+
+/* ---------- Shared recipe parts ---------- */
+.recipe { page: recipe; }
+.recipe + .recipe { break-before: page; }
+.recipe .source { string-set: source content(); height: 0; margin: 0; overflow: hidden; font-size: 0; line-height: 0; }
+
+.topline { display: table; width: 100%; margin: 0 0 2.5mm; }
+.topline .category { display: table-cell; font-family: "Label"; font-weight: 500; font-size: 6.8pt;
+                     text-transform: uppercase; letter-spacing: 0.22em; color: var(--accent); }
+.topline .rid { display: table-cell; text-align: right; font-family: "Label"; font-weight: 500; font-size: 6.8pt;
+                letter-spacing: 0.14em; text-transform: uppercase; color: var(--soft); white-space: nowrap; }
+
+.title { font-family: "Display", "Body"; font-weight: 600; font-size: 22pt; line-height: 1.04;
+         margin: 0 0 3mm; letter-spacing: -0.005em; }
+.headnote { font-family: "Display", "Body"; font-style: italic; font-weight: 500; font-size: 11pt;
+            line-height: 1.28; color: #444; margin: 0 0 3.4mm; }
+
+.meta { display: table; width: 100%; table-layout: fixed;
+        border-top: 0.5pt solid var(--rule); border-bottom: 0.5pt solid var(--rule); margin: 0 0 3.8mm; }
+.meta > div { display: table-cell; padding: 1.2mm 0 1.4mm; text-align: center; }
+.meta > div + div { border-left: 0.5pt solid var(--rule); }
+.meta .k { display: block; font-family: "Label"; font-weight: 500; font-size: 6.2pt;
+           text-transform: uppercase; letter-spacing: 0.18em; color: var(--accent); }
+.meta .v { display: block; font-size: 1.035em; margin-top: 0.2mm; }
+
+.group-name { font-style: italic; font-weight: 400; font-size: 1.06em; color: var(--soft); margin: 0 0 1.2mm; }
+ul.ing { list-style: none; margin: 0; padding: 0; }
+ul.ing li { padding-left: 2.5mm; text-indent: -2.5mm; margin-bottom: 0.45mm; }
+
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+ol.steps li { counter-increment: step; position: relative; padding-left: 5mm; margin-bottom: 1.8mm;
+              break-inside: avoid; }
+ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 0.1mm;
+                      font-family: "Label"; font-weight: 500; font-size: 8.6pt; color: var(--accent); }
+ol.steps li strong { font-weight: 600; }
+
+.note { background: var(--tint); padding: 2.6mm 4mm 2.8mm; margin-top: 3mm; break-inside: avoid; }
+.note p { margin: 0; }
+.note .runin { font-family: "Label"; font-weight: 500; font-size: 7pt; text-transform: uppercase;
+               letter-spacing: 0.22em; color: var(--accent); margin-right: 2mm; }
+
+/* ---------- One page: ingredients beside directions ---------- */
+.cols { display: table; width: 100%; table-layout: fixed; }
+.cols > .ingredients { display: table-cell; width: 41%; vertical-align: top; padding-right: 4mm;
+                       border-right: 0.5pt solid var(--rule); }
+.cols > .directions { display: table-cell; width: auto; vertical-align: top; padding-left: 4mm; }
+.cols .group + .group { margin-top: 2.4mm; }
+
+/* ---------- Two-page spread: ingredients page, then directions page ---------- */
+.spread { line-height: 1.42; }
+.spread .headnote { margin-bottom: 4.5mm; }
+.spread .meta { margin-bottom: 5.5mm; }
+.spread .meta > div { padding: 1.6mm 0 1.8mm; }
+.spread .groups { columns: 2; column-gap: 9mm; column-rule: 0.5pt solid var(--rule); }
+.spread .group { break-inside: avoid; margin: 0 0 3.2mm; }
+.spread ul.ing li { margin-bottom: 0.7mm; }
+.spread .directions-page { break-before: page; }
+.spread ol.steps li { padding-left: 7mm; margin-bottom: 2.6mm; }
+.spread ol.steps li::before { font-size: 11pt; top: -0.35mm; }
+.spread .note { margin-top: 5mm; padding: 3.4mm 5mm 3.6mm; }
+
+/* Last resort for very long recipes: the same template, allowed to run on. */
+.flow .group { break-inside: auto; }
+.flow .groups { columns: 1; }

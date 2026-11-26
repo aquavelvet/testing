@@ -10,15 +10,30 @@ from .numbers import normalize_fractions
 from .parser import parse_ingredient_line
 
 _DEGREES_F = re.compile(r"(\d)\s*(?:°\s*F\b|degrees?\s*(?:F\b|Fahrenheit\b))", re.IGNORECASE)
+_DEGREE_OVEN = re.compile(r"(\d)\s*(?:°\s*F\b|°|degrees?(?:\s*(?:F\b|Fahrenheit\b))?)\s+oven\b", re.IGNORECASE)
+_HYPHEN_RANGE = re.compile(r"(?<![\d/⁄.-])(\d+)\s?[-–]\s?(\d+)(?=\s+[A-Za-z]|$)")
 
 
-def tidy_text(text: str) -> str:
-    """Spacing, apostrophes, fraction characters, and '375 degrees' for running text."""
-    text = (text or "").replace(" ", " ")
+def _spell_range(match: re.Match) -> str:
+    low, high = int(match.group(1)), int(match.group(2))
+    return f"{low} to {high}" if high > low else match.group(0)
+
+
+def tidy_text(text: str, running: bool = True) -> str:
+    """Spacing, apostrophes, and fraction characters.
+
+    Running text (directions, notes, headnotes) also gets '375 degrees', '200-degree
+    oven', and '2 to 3 minutes'. Titles get only the basics.
+    """
+    text = (text or "").replace("\N{NO-BREAK SPACE}", " ")
     text = re.sub(r"(?<=\w)'(?=\w)|(?<=s)'(?=\s|$)", "’", text)
     text = re.sub(r"[ \t]+", " ", text).strip()
     text = normalize_fractions(text)
-    return _DEGREES_F.sub(r"\1 degrees", text)
+    if not running:
+        return text
+    text = _DEGREE_OVEN.sub(r"\1-degree oven", text)
+    text = _DEGREES_F.sub(r"\1 degrees", text)
+    return _HYPHEN_RANGE.sub(_spell_range, text)
 
 
 def apply_house_style(recipe: Recipe, glossary=DEFAULT_GLOSSARY) -> Recipe:
@@ -46,7 +61,7 @@ def apply_house_style(recipe: Recipe, glossary=DEFAULT_GLOSSARY) -> Recipe:
             tags.append(tag)
 
     return recipe.model_copy(update=dict(
-        title=tidy_text(recipe.title),
+        title=tidy_text(recipe.title, running=False),
         headnote=tidy_text(recipe.headnote),
         yield_value=tidy_text(recipe.yield_value),
         note=tidy_text(recipe.note),

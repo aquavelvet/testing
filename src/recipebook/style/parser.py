@@ -55,7 +55,7 @@ def _canonical_item(item: str) -> str:
 
 
 def _tidy(text: str) -> str:
-    text = text.replace(" ", " ")
+    text = text.replace("\N{NO-BREAK SPACE}", " ")
     text = re.sub(r"(?<=\w)'(?=\w)|(?<=s)'(?=\s|$)", "’", text)  # typographic apostrophe
     text = re.sub(r"\s+", " ", text).strip()
     return re.sub(r"\s+([,;.])", r"\1", text)

@@ -27,6 +27,25 @@ def test_tidy_text():
     assert tidy_text("Bake at 180°C.") == "Bake at 180°C."
     assert tidy_text("cut into 1/2-inch  slices") == "cut into ½-inch slices"
     assert tidy_text("don't overbeat") == "don’t overbeat"
+    assert tidy_text("1\N{NO-BREAK SPACE}cup") == "1 cup"
+
+
+def test_tidy_text_oven_temperatures():
+    assert tidy_text("Keep warm in a 200°F oven.") == "Keep warm in a 200-degree oven."
+    assert tidy_text("in a 350 degrees F oven") == "in a 350-degree oven"
+    assert tidy_text("in a 350 degree oven") == "in a 350-degree oven"
+    assert tidy_text("in a 180°C oven") == "in a 180°C oven"
+
+
+def test_tidy_text_spells_out_ranges_in_running_text():
+    assert tidy_text("cook 2-3 minutes") == "cook 2 to 3 minutes"
+    assert tidy_text("bake 50–60 minutes, then rest") == "bake 50 to 60 minutes, then rest"
+    assert tidy_text("serves 10-12") == "serves 10 to 12"
+    assert tidy_text("a 9-by-13-inch dish") == "a 9-by-13-inch dish"
+    assert tidy_text("a 50-50 mix") == "a 50-50 mix"
+    assert tidy_text("add 2-2½ cups stock") == "add 2-2½ cups stock"
+    assert tidy_text("the 1-2-3 method") == "the 1-2-3 method"
+    assert tidy_text("The 3-4 Hour Brisket", running=False) == "The 3-4 Hour Brisket"
 
 
 def _recipe(**kw):

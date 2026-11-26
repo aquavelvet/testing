@@ -85,6 +85,23 @@ def test_fidelity_checks_times():
     assert [f for f in flags if f.field == "total_minutes" and f.severity == "info"]
 
 
+def test_fidelity_catches_an_amount_swapped_for_a_number_used_elsewhere():
+    original = "1 pie crust, 1 c. corn syrup, 3/4 cup brown sugar, 1 tsp vanilla, 2 cups pecans. Bake at 350."
+    recipe = _recipe(
+        ingredient_groups=[IngredientGroup(items=[
+            Ingredient(text="1 pie crust"), Ingredient(text="1 cup corn syrup"), Ingredient(text="1 cup brown sugar"),
+            Ingredient(text="1 teaspoon vanilla"), Ingredient(text="2 cups pecans")])],
+        steps=[Step(text="Bake at 350 degrees.")], yield_value="")
+    flags = check_fidelity(original, recipe)
+    [suspect] = [f for f in flags if f.kind == "amount_suspect"]
+    assert suspect.severity == "warning" and "¾" in suspect.message and "“1 cup brown sugar”" in suspect.message
+    assert "2 cups pecans" not in suspect.message
+    fixed = recipe.model_copy(update={"ingredient_groups": [IngredientGroup(items=[
+        Ingredient(text="1 pie crust"), Ingredient(text="1 cup corn syrup"), Ingredient(text="¾ cup brown sugar"),
+        Ingredient(text="1 teaspoon vanilla"), Ingredient(text="2 cups pecans")])]})
+    assert check_fidelity(original, fixed) == []
+
+
 def test_fidelity_skipped_without_an_original():
     assert check_fidelity("", _recipe()) == []
 

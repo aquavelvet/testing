@@ -86,7 +86,10 @@ def doctor() -> int:
         print(f"{'ok  ' if ok else 'FAIL'}  {name}: {detail}")
     failed = [name for ok, name, _ in results if not ok]
     if failed:
-        print("\nIf the PDF engine failed on a Mac, install Pango:  brew install pango")
+        print("\nIf the PDF engine failed on a Mac:")
+        print("  1. Install Pango:  brew install pango")
+        print("  2. If it still cannot load a library such as libgobject, point it at Homebrew:")
+        print("     export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib")
         return 1
     print("\nEverything this version needs is working.")
     return 0

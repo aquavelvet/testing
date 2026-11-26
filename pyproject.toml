@@ -11,6 +11,14 @@ dependencies = [
     "pydantic>=2.7",
     "python-multipart>=0.0.9",
     "weasyprint>=63",
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "pypdfium2>=4",
+    "pillow>=10",
+    "pillow-heif>=0.16",
+    "anthropic>=0.60",
+    "keyring>=25",
+    "ocrmac>=1.0; sys_platform == 'darwin'",
 ]
 
 [project.scripts]
@@ -19,8 +27,6 @@ recipebook = "recipebook.cli:main"
 [dependency-groups]
 dev = [
     "pytest>=8",
-    "httpx>=0.27",
-    "pypdfium2>=4",
     "fonttools>=4",
 ]
 

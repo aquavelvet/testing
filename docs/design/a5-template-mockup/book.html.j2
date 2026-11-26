@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ book.title }}</title>
+<link rel="stylesheet" href="book.css">
+</head>
+<body>
+
+{# ------------------------------ macros ------------------------------ #}
+{% macro head(r) %}
+  <p class="source">{{ r.source }}</p>
+  <div class="topline"><span class="category">{{ r.category }}</span><span class="rid">No. {{ r.id }}</span></div>
+  <h1 class="title">{{ r.title }}</h1>
+  <p class="headnote">{{ r.headnote }}</p>
+  <div class="meta">
+    <div><span class="k">{{ r.yield_label }}</span><span class="v">{{ r.yield_value }}</span></div>
+    <div><span class="k">Active Time</span><span class="v">{{ r.active }}</span></div>
+    <div><span class="k">Total Time</span><span class="v">{{ r.total }}</span></div>
+  </div>
+{% endmacro %}
+
+{% macro ingredients(r) %}
+  <h2 class="label">Ingredients</h2>
+  <div class="groups">
+  {% for g in r.groups %}
+    <div class="group">
+      {% if g.name %}<h3 class="group-name">{{ g.name }}</h3>{% endif %}
+      <ul class="ing">{% for line in g['items'] %}<li>{{ line }}</li>{% endfor %}</ul>
+    </div>
+  {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro directions(r) %}
+  <h2 class="label">Directions</h2>
+  <ol class="steps">
+  {% for s in r.steps %}<li>{% if s.lead %}<strong>{{ s.lead }}:</strong> {% endif %}{{ s.text }}</li>{% endfor %}
+  </ol>
+{% endmacro %}
+
+{% macro note(r) %}
+  {% if r.note %}<aside class="note"><p><span class="runin">Cook’s Note</span>{{ r.note }}</p></aside>{% endif %}
+{% endmacro %}
+
+{% macro tail(r) %}
+  {% if r.notes_lines or r.qr %}
+  <div class="tail">
+    <div class="notes">
+      {% if r.notes_lines %}<div class="label">Notes</div>{% for i in range(r.notes_lines) %}<div class="line"></div>{% endfor %}{% endif %}
+    </div>
+    {% if r.qr %}<div class="qr"><img src="{{ r.qr }}" alt=""><div class="qr-cap">Original recipe</div></div>{% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{# ------------------------------ cover ------------------------------ #}
+<section class="cover">
+  <div class="frame">
+    <div class="kicker">{{ book.kicker }}</div>
+    <h1 class="book-title">{{ book.title_html | safe }}</h1>
+    <div class="orn"></div>
+    <p class="book-sub">{{ book.subtitle }}</p>
+    <div class="edition">{{ book.edition }}</div>
+  </div>
+</section>
+
+{# ------------------------------ contents ------------------------------ #}
+<section class="contents">
+  <h1 class="page-title">Contents</h1>
+  {% for cat in toc %}
+  <div class="toc-cat" data-page="{{ cat.page }}"><span class="name">{{ cat.name }}</span></div>
+  <ul class="toc-list">
+    {% for t, p in cat.recipes %}<li data-page="{{ p }}">{{ t }}</li>{% endfor %}
+  </ul>
+  {% endfor %}
+  <div class="toc-cat" data-page="{{ index_page }}"><span class="name">Index</span></div>
+</section>
+
+{# ------------------------------ section divider ------------------------------ #}
+<section class="divider">
+  <div class="part">{{ divider.part }}</div>
+  <h1 class="div-title">{{ divider.title_html | safe }}</h1>
+  <div class="orn"></div>
+  <ul class="div-list">
+    {% for t, p in divider.recipes %}<li data-page="{{ p }}">{{ t }}</li>{% endfor %}
+  </ul>
+</section>
+
+{# ------------------------------ recipes ------------------------------ #}
+{% for r in recipes %}
+  {% if r.layout == 'spread' %}
+  <section class="recipe spread">
+    {{ head(r) }}
+    <div class="ingredients">{{ ingredients(r) }}</div>
+    <div class="directions-page">
+      {{ directions(r) }}
+      {{ note(r) }}
+      {{ tail(r) }}
+    </div>
+  </section>
+  {% else %}
+  <section class="recipe"{% if r.font_size %} style="font-size: {{ r.font_size }};"{% endif %}>
+    {{ head(r) }}
+    <div class="cols">
+      <div class="ingredients">{{ ingredients(r) }}</div>
+      <div class="directions">{{ directions(r) }}</div>
+    </div>
+    {{ note(r) }}
+    {{ tail(r) }}
+  </section>
+  {% endif %}
+{% endfor %}
+
+{# ------------------------------ index ------------------------------ #}
+<section class="index">
+  <h1 class="page-title">Index</h1>
+  <div class="index-cols">
+  {% for letter, entries in index %}
+    <div class="idx-group">
+      <h2 class="idx-letter">{{ letter }}</h2>
+      {% for t, p in entries %}<p>{{ t }}, <span class="pg">{{ p }}</span></p>{% endfor %}
+    </div>
+  {% endfor %}
+  </div>
+</section>
+
+</body>
+</html>

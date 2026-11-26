@@ -1,0 +1,178 @@
+/* ---------- Fonts ---------- */
+@font-face { font-family: "Display"; font-weight: 600; font-style: normal;
+  src: url("../fontpkgs/node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-600-normal.woff2"); }
+@font-face { font-family: "Display"; font-weight: 500; font-style: italic;
+  src: url("../fontpkgs/node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-500-italic.woff2"); }
+@font-face { font-family: "Body"; font-weight: 400; font-style: normal;
+  src: url("../fontpkgs/node_modules/@fontsource/source-serif-4/files/source-serif-4-latin-400-normal.woff2"); }
+@font-face { font-family: "Body"; font-weight: 400; font-style: italic;
+  src: url("../fontpkgs/node_modules/@fontsource/source-serif-4/files/source-serif-4-latin-400-italic.woff2"); }
+@font-face { font-family: "Body"; font-weight: 600; font-style: normal;
+  src: url("../fontpkgs/node_modules/@fontsource/source-serif-4/files/source-serif-4-latin-600-normal.woff2"); }
+@font-face { font-family: "Label"; font-weight: 400; font-style: normal;
+  src: url("../fontpkgs/node_modules/@fontsource/jost/files/jost-latin-400-normal.woff2"); }
+@font-face { font-family: "Label"; font-weight: 500; font-style: normal;
+  src: url("../fontpkgs/node_modules/@fontsource/jost/files/jost-latin-500-normal.woff2"); }
+
+:root {
+  --ink: #2b2b2b;
+  --soft: #5a5a5a;
+  --accent: #4b7264;   /* deep jadeite green */
+  --tint: #edf3f0;     /* pale jadeite */
+  --rule: #c9d6d0;
+}
+
+/* ---------- Pages: A5, mirrored margins for a bound book ---------- */
+@page { size: A5; margin: 12mm 11mm 16mm 17mm; }
+
+@page :left {
+  margin-left: 11mm; margin-right: 17mm;           /* outer 11, inner (gutter) 17 */
+  @bottom-left { content: counter(page);
+    font-family: "Label"; font-weight: 500; font-size: 7.5pt; color: var(--accent);
+    vertical-align: top; padding-top: 3.5mm; }
+}
+@page :right {
+  margin-left: 17mm; margin-right: 11mm;
+  @bottom-right { content: counter(page);
+    font-family: "Label"; font-weight: 500; font-size: 7.5pt; color: var(--accent);
+    vertical-align: top; padding-top: 3.5mm; }
+}
+/* Recipe pages also carry the source credit on the inner side of the footer */
+@page recipe:left {
+  @bottom-right { content: string(source);
+    font-family: "Label"; font-size: 6.8pt; letter-spacing: 0.02em; color: var(--soft);
+    vertical-align: top; padding-top: 3.5mm; }
+}
+@page recipe:right {
+  @bottom-left { content: string(source);
+    font-family: "Label"; font-size: 6.8pt; letter-spacing: 0.02em; color: var(--soft);
+    vertical-align: top; padding-top: 3.5mm; }
+}
+@page cover   { margin: 13mm; @bottom-left { content: none; } @bottom-right { content: none; } }
+@page divider { margin: 14mm; background: var(--tint); counter-reset: page 33;
+                @bottom-left { content: none; } @bottom-right { content: none; } }
+
+html { color: var(--ink); font-family: "Body"; font-size: 8.5pt; line-height: 1.38; }
+body { margin: 0; }
+section { break-before: page; }
+section.cover { break-before: auto; }
+
+.label {
+  font-family: "Label"; font-weight: 500; font-size: 7pt; text-transform: uppercase;
+  letter-spacing: 0.22em; color: var(--accent); margin: 0 0 2.5mm;
+}
+.orn { width: 9mm; height: 0; border-top: 0.8pt solid var(--accent); margin: 0 auto; }
+
+/* ---------- Cover ---------- */
+.cover { page: cover; }
+.cover .frame {
+  box-sizing: border-box; height: 184mm; border: 0.6pt solid var(--accent);
+  position: relative; text-align: center; padding: 56mm 12mm 0;
+}
+.cover .kicker { font-family: "Label"; font-weight: 500; font-size: 7.4pt; text-transform: uppercase;
+                 letter-spacing: 0.3em; color: var(--accent); margin-bottom: 7mm; }
+.cover .book-title { font-family: "Display"; font-weight: 600; font-size: 36pt; line-height: 1.02;
+                     margin: 0 0 7mm; }
+.cover .book-sub { font-family: "Display"; font-style: italic; font-weight: 500; font-size: 13pt;
+                   color: #444; margin: 6mm 0 0; }
+.cover .edition { position: absolute; left: 0; right: 0; bottom: 11mm;
+                  font-family: "Label"; font-size: 7pt; letter-spacing: 0.26em; text-transform: uppercase;
+                  color: var(--soft); }
+
+/* ---------- Contents ---------- */
+.page-title { font-family: "Display"; font-weight: 600; font-size: 24pt; line-height: 1; margin: 0 0 5.5mm; }
+.toc-cat { margin: 3.6mm 0 1.2mm; border-bottom: 0.5pt solid var(--rule); padding-bottom: 0.9mm; }
+.toc-cat .name { font-family: "Label"; font-weight: 500; font-size: 7pt; text-transform: uppercase;
+                 letter-spacing: 0.22em; color: var(--accent); }
+.toc-cat::after, .toc-list li::after { content: leader(space) attr(data-page); }
+.toc-cat::after { font-family: "Label"; font-weight: 500; font-size: 7.5pt; color: var(--accent); }
+.toc-list { list-style: none; margin: 0; padding: 0; }
+.toc-list li { margin-bottom: 0.3mm; }
+.toc-list li::after { content: leader(dotted) attr(data-page); color: var(--soft); }
+
+/* ---------- Section divider ---------- */
+.divider { page: divider; text-align: center; padding-top: 44mm; }
+.divider .part { font-family: "Label"; font-weight: 500; font-size: 7.2pt; text-transform: uppercase;
+                 letter-spacing: 0.3em; color: var(--accent); margin-bottom: 6mm; }
+.divider .div-title { font-family: "Display"; font-weight: 600; font-size: 34pt; line-height: 1.02; margin: 0 0 7mm; }
+.divider .div-list { list-style: none; margin: 8mm auto 0; padding: 0; width: 78mm; text-align: left; }
+.divider .div-list li { margin-bottom: 0.9mm; }
+.divider .div-list li::after { content: leader(dotted) attr(data-page); color: var(--soft); }
+
+/* ---------- Recipe (shared) ---------- */
+.recipe { page: recipe; }
+.recipe .source { string-set: source content(); height: 0; margin: 0; overflow: hidden; font-size: 0; line-height: 0; }
+.category { font-family: "Label"; font-weight: 500; font-size: 6.8pt; text-transform: uppercase;
+            letter-spacing: 0.22em; color: var(--accent); margin: 0 0 2.5mm; }
+.title { font-family: "Display"; font-weight: 600; font-size: 22pt; line-height: 1.04;
+         margin: 0 0 3mm; letter-spacing: -0.005em; }
+.headnote { font-family: "Display"; font-style: italic; font-weight: 500; font-size: 11pt;
+            line-height: 1.28; color: #444; margin: 0 0 3.4mm; }
+.meta { display: table; width: 100%; border-top: 0.5pt solid var(--rule); border-bottom: 0.5pt solid var(--rule);
+        margin: 0 0 3.8mm; }
+.meta > div { display: table-cell; padding: 1.2mm 0 1.4mm; width: 33.33%; text-align: center; }
+.meta > div + div { border-left: 0.5pt solid var(--rule); }
+.meta .k { display: block; font-family: "Label"; font-weight: 500; font-size: 6.2pt;
+           text-transform: uppercase; letter-spacing: 0.18em; color: var(--accent); }
+.meta .v { display: block; font-size: 1.035em; margin-top: 0.2mm; }
+
+.group-name { font-style: italic; font-size: 1.06em; color: var(--soft); margin: 0 0 1.2mm; }
+ul.ing { list-style: none; margin: 0; padding: 0; }
+ul.ing li { padding-left: 2.5mm; text-indent: -2.5mm; margin-bottom: 0.45mm; }
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+ol.steps li { counter-increment: step; position: relative; padding-left: 5mm; margin-bottom: 1.8mm; }
+ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 0.1mm;
+                      font-family: "Label"; font-weight: 500; font-size: 8.6pt; color: var(--accent); }
+ol.steps li strong { font-weight: 600; }
+.note { background: var(--tint); padding: 2.6mm 4mm 2.8mm; margin-top: 3mm; }
+.note p { margin: 0; }
+.note .runin { font-family: "Label"; font-weight: 500; font-size: 7pt; text-transform: uppercase;
+               letter-spacing: 0.22em; color: var(--accent); margin-right: 2mm; }
+
+/* ---------- Recipe: one page, ingredients beside directions ---------- */
+.cols { display: table; width: 100%; table-layout: fixed; }
+.cols > .ingredients { display: table-cell; width: 41%; vertical-align: top; padding-right: 4mm;
+                       border-right: 0.5pt solid var(--rule); }
+.cols > .directions { display: table-cell; width: auto; vertical-align: top; padding-left: 4mm; }
+.cols .group + .group { margin-top: 2.4mm; }
+
+/* ---------- Recipe: two-page spread (long recipes) ---------- */
+.recipe.spread { break-before: left; font-size: 9pt; line-height: 1.42; }
+.spread .headnote { margin-bottom: 4.5mm; }
+.spread .meta { margin-bottom: 5.5mm; }
+.spread .meta > div { padding: 1.6mm 0 1.8mm; }
+.spread .groups { columns: 2; column-gap: 9mm; column-rule: 0.5pt solid var(--rule); }
+.spread .group { break-inside: avoid; margin: 0 0 3.2mm; }
+.spread ul.ing li { margin-bottom: 0.7mm; }
+.spread .directions-page { break-before: page; }
+.spread ol.steps li { padding-left: 7mm; margin-bottom: 2.6mm; }
+.spread ol.steps li::before { font-size: 11pt; top: -0.35mm; }
+.spread .note { margin-top: 5mm; padding: 3.4mm 5mm 3.6mm; }
+
+/* ---------- Optional extras: notes lines and QR code ---------- */
+.tail { display: table; width: 100%; margin-top: 6mm; }
+.tail .notes { display: table-cell; vertical-align: bottom; }
+.tail .notes .label { margin-bottom: 0; }
+.tail .notes .line { border-bottom: 0.5pt solid var(--rule); height: 7.2mm; }
+.tail .qr { display: table-cell; width: 17mm; vertical-align: bottom; padding-left: 6mm; text-align: center; }
+.tail .qr img { width: 17mm; height: 17mm; display: block; }
+.tail .qr-cap { font-family: "Label"; font-weight: 500; font-size: 5.4pt; letter-spacing: 0.14em;
+                text-transform: uppercase; color: var(--soft); margin-top: 1.2mm; white-space: nowrap; }
+
+/* ---------- Index ---------- */
+.index-cols { columns: 2; column-gap: 8mm; }
+.idx-group { break-inside: avoid; margin-bottom: 3mm; }
+.idx-letter { font-family: "Display"; font-weight: 600; font-size: 15pt; line-height: 1; color: var(--accent);
+              margin: 0 0 1.2mm; }
+.idx-group p { margin: 0 0 0.5mm; padding-left: 3mm; text-indent: -3mm; }
+.idx-group .pg { color: var(--soft); }
+
+/* ---------- Recipe ID, top right of every recipe ---------- */
+.topline { display: table; width: 100%; margin: 0 0 2.5mm; }
+.topline .category { display: table-cell; margin: 0; }
+.topline .rid { display: table-cell; text-align: right; font-family: "Label"; font-weight: 500; font-size: 6.8pt;
+                letter-spacing: 0.14em; text-transform: uppercase; color: var(--soft); white-space: nowrap; }
+
+/* mockup-only: index page number matches the sample contents page */
+.index { page: index; }
+@page index { counter-reset: page 42; }

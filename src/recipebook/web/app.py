@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import mimetypes
+from dataclasses import asdict
+from datetime import datetime
 import re
 import uuid
 from contextlib import asynccontextmanager
@@ -22,7 +24,8 @@ from ..intake.pipeline import Pipeline, Worker, finish_draft
 from ..intake.structure import DEFAULT_LOCAL_MODEL, ClaudeStructurer, LocalStructurer
 from ..library import Library
 from ..model import Recipe
-from ..render.pdf import render_recipe_pdf
+from ..render.book import BookOptions, build_book
+from ..render.pdf import BINDINGS, render_recipe_pdf
 from ..secrets import KeychainStore
 from ..style.glossary import GlossaryEntry
 from ..style.housestyle import apply_house_style
@@ -360,6 +363,59 @@ def create_app(
         if not kind.startswith("image/") and kind != "application/pdf":
             kind = "text/plain; charset=utf-8"
         return Response(path.read_bytes(), media_type=kind, headers={"X-Content-Type-Options": "nosniff"})
+
+    # ---- book ----
+
+    def book_page(status: int = 200, **context) -> HTMLResponse:
+        defaults = dict(title="Recipes from Our Kitchen", subtitle="", kicker="A Family Cookbook",
+                        edition=f"{datetime.now().year} Edition", categories=None, tag="", binding="bound",
+                        notes=True, qr=True)
+        options = {**defaults, **library.get_setting("book_options", {})}
+        return page("book.html", status, options=options, categories=library.categories(),
+                    editions=library.editions(), total=len(library.list()), **context)
+
+    @app.get("/book", response_class=HTMLResponse)
+    def book_form(made: int = 0):
+        return book_page(made=library.get_edition(made) if made else None)
+
+    @app.post("/book")
+    async def make_book(request: Request):
+        form = await request.form()
+        chosen = [str(name) for name in form.getlist("categories")]
+        options = BookOptions(
+            title=(form.get("title") or "").strip() or "Recipes",
+            subtitle=(form.get("subtitle") or "").strip(),
+            kicker=(form.get("kicker") or "").strip(),
+            edition=(form.get("edition") or "").strip(),
+            categories=chosen or None,
+            tag=(form.get("tag") or "").strip() or None,
+            binding=form.get("binding") if form.get("binding") in BINDINGS else "bound",
+            notes=bool(form.get("notes")),
+            qr=bool(form.get("qr")),
+        )
+        library.set_setting("book_options", {**asdict(options), "tag": options.tag or ""})
+        try:
+            result = await run_in_threadpool(build_book, library, options)
+        except ValueError as error:
+            return book_page(status=422, problem=str(error))
+        name = f"{_slug(options.title)}-{datetime.now():%Y-%m-%d-%H%M%S}.pdf"
+        (home.exports / name).write_bytes(result.pdf)
+        edition_id = library.add_edition(options.title, name, dict(
+            pages=result.pages, recipe_count=result.recipe_count, report=result.report,
+            binding=options.binding, tag=options.tag or "", categories=options.categories,
+            page_map={str(page): recipe_id for page, recipe_id in result.page_map.items()},
+        ))
+        return RedirectResponse(f"/book?made={edition_id}", status_code=303)
+
+    @app.get("/editions/{edition_id}/pdf")
+    def edition_pdf(edition_id: int, download: int = 0):
+        edition = library.get_edition(edition_id)
+        path = home.exports / Path(edition["file"]).name if edition else None
+        if path is None or not path.is_file():
+            raise HTTPException(status_code=404, detail="That book file is no longer in the exports folder.")
+        disposition = "attachment" if download else "inline"
+        return Response(path.read_bytes(), media_type="application/pdf",
+                        headers={"Content-Disposition": f'{disposition}; filename="{path.name}"'})
 
     # ---- settings ----
 

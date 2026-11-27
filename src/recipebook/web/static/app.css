@@ -144,3 +144,10 @@ button.link:disabled { color: var(--soft); cursor: not-allowed; text-decoration:
   .original { position: static; max-height: 60vh; }
   .row.five { grid-template-columns: 1fr; }
 }
+
+/* Book */
+.report { margin: 8px 0 0; padding-left: 18px; color: var(--soft); }
+.notice p { margin: 0; }
+h2.section { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+             border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin: 36px 0 8px; font-weight: 600; }
+.hint.inline { color: var(--soft); font-size: 12.5px; align-self: center; }

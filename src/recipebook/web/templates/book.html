@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Book · Recipe Book{% endblock %}
+{% block main %}
+<h1>Export the book</h1>
+{% if problem %}<p class="error">{{ problem }}</p>{% endif %}
+{% if made %}
+<div class="notice">
+  <p><strong>{{ made.title }}</strong> is ready: {{ made.pages }} pages, {{ made.recipe_count }} recipe{{ '' if made.recipe_count == 1 else 's' }}.
+    <a href="/editions/{{ made.id }}/pdf" target="_blank" rel="noopener">Open</a> ·
+    <a href="/editions/{{ made.id }}/pdf?download=1">Download</a></p>
+  {% if made.report %}<ul class="report">{% for line in made.report %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+
+<form method="post" action="/book" class="recipe-form">
+  <div class="row">
+    <label>Title <input name="title" value="{{ options.title }}" required></label>
+    <label>Subtitle <span class="hint">Optional</span><input name="subtitle" value="{{ options.subtitle }}"></label>
+  </div>
+  <div class="row">
+    <label>Line above the title <span class="hint">Optional</span><input name="kicker" value="{{ options.kicker }}"></label>
+    <label>Line at the foot of the cover <span class="hint">Optional</span><input name="edition" value="{{ options.edition }}"></label>
+  </div>
+
+  <fieldset>
+    <legend>What goes in <span class="hint">{{ total }} saved recipe{{ '' if total == 1 else 's' }} in the library</span></legend>
+    {% for name in categories %}
+    <label class="check"><input type="checkbox" name="categories" value="{{ name }}"
+      {{ 'checked' if options.categories is none or name in options.categories }}> {{ name }}</label>
+    {% endfor %}
+    <label class="wide">Only recipes tagged <span class="hint">Optional. For example Thanksgiving, for a holiday booklet.</span>
+      <input name="tag" value="{{ options.tag }}"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Printing</legend>
+    <div class="row">
+      <label>Binding
+        <select name="binding">
+          {% for value, text in [('bound', 'Bound book (wider inner margin)'), ('ring', 'Ring binder (widest inner margin)'), ('none', 'None (equal margins)')] %}
+          <option value="{{ value }}" {{ 'selected' if value == options.binding }}>{{ text }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div>
+        <label class="check"><input type="checkbox" name="notes" value="1" {{ 'checked' if options.notes }}> Ruled notes lines where a page has room</label>
+        <label class="check"><input type="checkbox" name="qr" value="1" {{ 'checked' if options.qr }}> QR code to the web source where it fits</label>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="actions"><button type="submit" class="button primary">Make the book</button>
+    <span class="hint inline">The first export of a large library takes a while; later ones reuse each recipe's layout.</span></div>
+</form>
+
+{% if editions %}
+<h2 class="section">Editions</h2>
+<p class="count">Page numbers belong to an edition. The latest one is what “pages” means when you ask for an ingredient list.</p>
+<ul class="recipes">
+  {% for e in editions %}
+  <li><span class="rid">{{ e.created_at[:10] }}</span>
+      <span class="name">{{ e.title }} <span class="via">{{ e.pages }} pages · {{ e.recipe_count }} recipes{% if e.tag %} · tag {{ e.tag }}{% endif %}{% if loop.first %} · latest{% endif %}</span></span>
+      <a class="pdf" href="/editions/{{ e.id }}/pdf" target="_blank" rel="noopener">PDF</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

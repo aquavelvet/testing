@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from ..config import Home, default_home
+from ..intake.inbox import InboxWatcher
 from ..intake.jobs import Job, JobStore
 from ..intake.ocr import default_ocr
 from ..intake.pipeline import Pipeline, Worker, finish_draft
@@ -27,6 +28,7 @@ from ..model import Recipe
 from ..render.book import BookOptions, build_book
 from ..render.pdf import BINDINGS, render_recipe_pdf
 from ..secrets import KeychainStore
+from ..shopping import EntryError, merge, parse_numbers, recipes_on_pages
 from ..style.glossary import GlossaryEntry
 from ..style.housestyle import apply_house_style
 from .forms import form_from_recipe, recipe_from_form
@@ -91,7 +93,9 @@ def create_app(
 
     pipeline = Pipeline(jobs, library, home.originals, ocr or default_ocr(),
                         structurer_for or default_structurer_for, url_client=url_client)
-    worker = Worker(pipeline)
+    inbox = InboxWatcher(home.inbox, home.originals, jobs,
+                         lambda: library.get_setting("default_structurer", "local"))
+    worker = Worker(pipeline, before_each=[inbox.scan])
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -103,6 +107,7 @@ def create_app(
 
     app = FastAPI(title="Recipe Book", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.pipeline = pipeline
+    app.state.inbox = inbox
     app.state.jobs = jobs
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
@@ -158,15 +163,55 @@ def create_app(
 
     # ---- library ----
 
-    @app.get("/", response_class=HTMLResponse)
-    def library_page(deleted: str = ""):
+    def library_context(q: str) -> dict:
+        q = q.strip()
+        total = len(library.list())
+        if q:
+            return dict(q=q, results=library.search(q), total=total, sections=[])
         summaries = library.list()
         categories = library.categories()
         sections = [(name, [s for s in summaries if s.category == name]) for name in categories]
         other = [s for s in summaries if s.category not in categories]
         if other:
             sections.append(("Other", other))
-        return page("library.html", sections=sections, total=len(summaries), deleted=deleted)
+        return dict(q="", results=None, total=total, sections=sections)
+
+    @app.get("/", response_class=HTMLResponse)
+    def library_page(deleted: str = "", q: str = ""):
+        return page("library.html", deleted=deleted, **library_context(q))
+
+    @app.get("/search", response_class=HTMLResponse)
+    def search_fragment(q: str = ""):
+        """The library list alone, for filtering as you type."""
+        return HTMLResponse(_env.get_template("_library_list.html").render(**library_context(q)))
+
+    # ---- ingredient list ----
+
+    @app.get("/ingredients", response_class=HTMLResponse)
+    def ingredient_list(entry: str = "", mode: str = "pages", edition: int = 0):
+        editions = library.editions()
+        mode = "numbers" if mode == "numbers" or not editions else "pages"
+        context = dict(entry=entry, mode=mode, editions=editions, edition_id=edition or (editions[0]["id"] if editions else 0))
+        if not entry.strip():
+            return page("ingredients.html", **context)
+        try:
+            numbers = parse_numbers(entry)
+        except EntryError as error:
+            return page("ingredients.html", 422, problem=str(error), **context)
+        skipped: list[int] = []
+        if mode == "pages":
+            chosen = library.get_edition(context["edition_id"])
+            if chosen is None:
+                return page("ingredients.html", 422, problem="Export the book first; page numbers belong to an edition.", **context)
+            numbers, skipped = recipes_on_pages(chosen["page_map"], numbers)
+        recipes = [r for r in (library.get(n) for n in numbers) if r is not None]
+        missing = [n for n in numbers if all(r.id != n for r in recipes)]
+        if not recipes:
+            what = "pages hold" if mode == "pages" else "numbers match"
+            return page("ingredients.html", 422, problem=f"None of those {what} a recipe.", skipped=skipped, missing=missing, **context)
+        merged = merge(recipes)
+        return page("ingredients.html", recipes=recipes, merged=merged, text=merged.text(recipes),
+                    skipped=skipped, missing=missing, **context)
 
     # ---- recipe form ----
 
@@ -320,6 +365,7 @@ def create_app(
         job = jobs.get(draft.job_id)
         images = [Path(f).name for f in (job.material.images if job and job.material else [])]
         return page("review.html", status, draft=draft, job=job, form=form, images=images,
+                    duplicates=library.find_duplicates(draft.recipe),
                     original_text=draft.recipe.original_text, flags=draft.recipe.flags,
                     categories=library.categories(), has_key=bool(keys.get()), **context)
 

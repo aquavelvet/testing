@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block head %}{% if active %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{# Refresh quickly while work is under way; slowly otherwise, so files dropped in the inbox folder show up. #}
+{% block head %}<meta http-equiv="refresh" content="{{ 3 if active else 15 }}">{% endblock %}
 {% block title %}Queue · Recipe Book{% endblock %}
 {% block main %}
 <h1>Queue</h1>

@@ -9,6 +9,12 @@
 
 {% if missing %}<p class="error">Not saved yet. Still needed: {{ missing | join(', ') }}.</p>{% endif %}
 
+{% if duplicates %}
+<p class="error">This may already be in your library:
+  {% for d in duplicates %}<a href="/recipes/{{ d.id }}" target="_blank" rel="noopener">No. {{ d.id }} {{ d.title }}</a>{{ ', ' if not loop.last }}{% endfor %}.
+  You can still save it.</p>
+{% endif %}
+
 {% if flags %}
 <ul class="flags">
   {% for flag in flags %}<li class="{{ flag.severity }}">{{ flag.message }}</li>{% endfor %}

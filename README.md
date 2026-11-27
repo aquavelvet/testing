@@ -2,7 +2,7 @@
 
 A local app that takes recipes from web pages, PDFs, and cookbook photos, puts each one into a single house format, and prints them as A5 pages: one PDF per recipe, or a full recipe book.
 
-Status: milestone 3 of 4 (core, print, intake, and the full book with contents, sections, and index).
+Status: all four milestones built (core, print, intake, book, search, and ingredient lists). Not yet run on a Mac.
 
 ## Requirements
 

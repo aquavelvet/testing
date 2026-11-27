@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import difflib
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -45,6 +47,20 @@ CREATE TABLE IF NOT EXISTS glossary (
 """
 
 
+def _search_fields(recipe: Recipe) -> tuple[str, str, str, str, str]:
+    ingredients = "\n".join(f"{i.text} {i.item or ''}" for i in recipe.ingredients())
+    body = "\n".join([recipe.headnote, recipe.note, *(f"{s.lead or ''} {s.text}" for s in recipe.steps)])
+    source = " ".join(filter(None, [recipe.source.url, recipe.source.title, recipe.source.author, recipe.source.label]))
+    return recipe.title, ingredients, body, " ".join([recipe.category, *recipe.tags]), source
+
+
+def _plain_url(url: str | None) -> str:
+    """A web address reduced to host and path, so http/https, www, and tracking tags do not matter."""
+    if not url:
+        return ""
+    return re.sub(r"^https?://(www\.)?", "", url.strip().lower()).split("?")[0].split("#")[0].rstrip("/")
+
+
 @dataclass(frozen=True)
 class RecipeSummary:
     id: int
@@ -59,6 +75,17 @@ class Library:
         self.database.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as con:
             con.executescript(_SCHEMA)
+            con.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS recipe_search USING fts5("
+                "title, ingredients, body, tags, source, tokenize = 'unicode61 remove_diacritics 2')")
+            indexed = con.execute("SELECT COUNT(*) FROM recipe_search").fetchone()[0]
+            stored = con.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]
+            if indexed != stored:  # a library from before search existed, or an interrupted write
+                con.execute("DELETE FROM recipe_search")
+                for row in con.execute("SELECT id, data FROM recipes").fetchall():
+                    recipe = Recipe.model_validate_json(row["data"])
+                    con.execute("INSERT INTO recipe_search (rowid, title, ingredients, body, tags, source) "
+                                "VALUES (?, ?, ?, ?, ?, ?)", (row["id"], *_search_fields(recipe)))
             if con.execute("SELECT COUNT(*) FROM glossary").fetchone()[0] == 0:
                 con.executemany(
                     "INSERT INTO glossary (preferred, variants) VALUES (?, ?)",
@@ -94,6 +121,9 @@ class Library:
             )
             if updated.rowcount == 0:
                 raise KeyError(f"No recipe numbered {recipe.id}")
+            con.execute("DELETE FROM recipe_search WHERE rowid = ?", (recipe.id,))
+            con.execute("INSERT INTO recipe_search (rowid, title, ingredients, body, tags, source) "
+                        "VALUES (?, ?, ?, ?, ?, ?)", (recipe.id, *_search_fields(recipe)))
         return recipe
 
     def get(self, recipe_id: int) -> Recipe | None:
@@ -115,7 +145,60 @@ class Library:
 
     def delete(self, recipe_id: int) -> bool:
         with self._connect() as con:
+            con.execute("DELETE FROM recipe_search WHERE rowid = ?", (recipe_id,))
             return con.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,)).rowcount > 0
+
+    def search(self, query: str) -> list[RecipeSummary]:
+        """Find recipes by title, ingredient, tag, source, or number. Best matches first.
+
+        Every word must match; the last word may be unfinished ("pump" finds pumpkin).
+        "142", "#142", and "No. 142" find that recipe directly.
+        """
+        query = (query or "").strip()
+        if not query:
+            return self.list()
+        results: list[RecipeSummary] = []
+        number = re.fullmatch(r"(?:no\.?\s*|#)?(\d+)", query, re.IGNORECASE)
+        with self._connect() as con:
+            if number:
+                row = con.execute("SELECT id, title, category, updated_at FROM recipes WHERE id = ?",
+                                  (int(number.group(1)),)).fetchone()
+                if row:
+                    results.append(RecipeSummary(**dict(row)))
+                if not query.isdigit():
+                    return results  # "#12" and "No. 12" ask for that recipe and nothing else
+            words = re.findall(r"[^\W_]+", query, re.UNICODE)
+            if words:
+                match = " ".join(f'"{word}"*' for word in words)
+                rows = con.execute(
+                    "SELECT r.id, r.title, r.category, r.updated_at FROM recipe_search s "
+                    "JOIN recipes r ON r.id = s.rowid WHERE recipe_search MATCH ? "
+                    "ORDER BY bm25(recipe_search, 10.0, 4.0, 1.0, 4.0, 2.0), r.title COLLATE NOCASE", (match,)).fetchall()
+                seen = {summary.id for summary in results}
+                results += [RecipeSummary(**dict(row)) for row in rows if row["id"] not in seen]
+        return results
+
+    def find_duplicates(self, recipe: Recipe) -> list[RecipeSummary]:
+        """Saved recipes that look like this one: the same web address, or a title at least
+        90% similar together with ingredients that overlap by at least 80%."""
+        found = []
+        url = _plain_url(recipe.source.url)
+        items = {i.item for i in recipe.ingredients() if i.item}
+        title = recipe.title.strip().lower()
+        for summary in self.list():
+            if summary.id == recipe.id:
+                continue
+            other = self.get(summary.id)
+            if url and url == _plain_url(other.source.url):
+                found.append(summary)
+                continue
+            if difflib.SequenceMatcher(None, title, other.title.strip().lower()).ratio() < 0.9:
+                continue
+            other_items = {i.item for i in other.ingredients() if i.item}
+            union = items | other_items
+            if union and len(items & other_items) / len(union) >= 0.8:
+                found.append(summary)
+        return found
 
     # ---- settings ----
 

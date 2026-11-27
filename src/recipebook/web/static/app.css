@@ -151,3 +151,14 @@ button.link:disabled { color: var(--soft); cursor: not-allowed; text-decoration:
 h2.section { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
              border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin: 36px 0 8px; font-weight: 600; }
 .hint.inline { color: var(--soft); font-size: 12.5px; align-self: center; }
+
+/* Search and ingredient list */
+.search input { width: 100%; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 6px; font: inherit;
+                font-size: 16px; margin: 0 0 18px; background: #fff; }
+.search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.needs { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; }
+.needs li { padding: 5px 0; border-bottom: 1px solid #eef2f0; break-inside: avoid; }
+.section .link { float: right; text-transform: none; letter-spacing: 0; font-size: 13px; }
+.plain { width: 100%; margin-top: 24px; padding: 10px; border: 1px solid var(--rule); border-radius: 6px;
+         font: 13px/1.5 ui-monospace, Menlo, monospace; color: var(--soft); }
+@media (max-width: 720px) { .needs { columns: 1; } }

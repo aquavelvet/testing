@@ -95,8 +95,9 @@ class Pipeline:
 class Worker:
     """One background thread that works through the queue."""
 
-    def __init__(self, pipeline: Pipeline, idle_seconds: float = 1.0, waiting_seconds: float = 5.0):
+    def __init__(self, pipeline: Pipeline, idle_seconds: float = 1.0, waiting_seconds: float = 5.0, before_each=()):
         self.pipeline, self.idle_seconds, self.waiting_seconds = pipeline, idle_seconds, waiting_seconds
+        self.before_each = list(before_each)  # for example the inbox folder scan
         self._stop = threading.Event()
         self._wake = threading.Event()
         self._thread: threading.Thread | None = None
@@ -118,6 +119,8 @@ class Worker:
     def _loop(self) -> None:
         while not self._stop.is_set():
             try:
+                for task in self.before_each:
+                    task()
                 waiting = self.pipeline.run_pending()
             except Exception:
                 traceback.print_exc()

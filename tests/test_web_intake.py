@@ -41,11 +41,11 @@ def test_add_url_review_and_save(ctx):
     response = client.post("/add", data={"urls": "https://example.com/shortbread\n\n", "structurer": "local"})
     assert response.headers["location"] == "/queue"
     queue = client.get("/queue").text
-    assert "Queued" in queue and 'http-equiv="refresh"' in queue
+    assert "Queued" in queue and 'http-equiv="refresh" content="3"' in queue
     run(app)
     queue = client.get("/queue").text
     assert "Done" in queue and 'href="/drafts/1"' in queue and "1 to check" in queue
-    assert 'http-equiv="refresh"' not in queue and '<span class="badge">1</span>' in queue
+    assert 'http-equiv="refresh" content="15"' in queue and '<span class="badge">1</span>' in queue
 
     review = client.get("/drafts/1").text
     assert "Review: Shortbread" in review and "Read by the local model" in review
@@ -132,7 +132,7 @@ def test_waiting_banner_when_ollama_is_down(ctx):
     run(app)
     queue = client.get("/queue").text
     assert "Ollama is not running." in queue and "ollama serve" in queue and "start by themselves" in queue
-    assert 'http-equiv="refresh"' in queue
+    assert 'http-equiv="refresh" content="3"' in queue
 
 
 def test_discard_and_remove(ctx):

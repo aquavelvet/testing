@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import glob
+import os
 import sys
 import threading
 import webbrowser
@@ -10,6 +12,24 @@ import webbrowser
 from .config import default_home
 
 DEFAULT_PORT = 8765
+HOMEBREW_LIBRARY_FOLDERS = ("/opt/homebrew/lib", "/usr/local/lib")  # Apple Silicon, then Intel
+
+
+def ensure_homebrew_libraries(argv: list[str]) -> None:
+    """On a Mac, let the PDF engine find the libraries Homebrew installed (Pango and friends).
+
+    Python from uv does not look in Homebrew's folder. macOS reads the library search path
+    only when a program starts, so this sets the path and starts the program again, once.
+    """
+    if sys.platform != "darwin":
+        return
+    current = [part for part in os.environ.get("DYLD_FALLBACK_LIBRARY_PATH", "").split(":") if part]
+    for folder in HOMEBREW_LIBRARY_FOLDERS:
+        if folder in current:
+            return  # already set, by us or by the user; never restart twice
+        if glob.glob(os.path.join(folder, "libgobject-2.0*.dylib")):
+            os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = ":".join([folder, *current])
+            os.execv(sys.executable, [sys.executable, "-m", "recipebook.cli", *argv])
 
 
 def serve(port: int, open_browser: bool) -> int:
@@ -89,9 +109,7 @@ def doctor() -> int:
     failed = [name for ok, name, _ in results if not ok]
     if failed:
         print("\nIf the PDF engine failed on a Mac:")
-        print("  1. Install Pango:  brew install pango")
-        print("  2. If it still cannot load a library such as libgobject, point it at Homebrew:")
-        print("     export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib")
+        print("  Install Pango, then run this again:  brew install pango")
         return 1
     print("\nEverything this version needs is working.")
     return 0
@@ -134,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
         target.add_argument("--no-browser", action="store_true", help="do not open the browser")
     sub.add_parser("doctor", help="check that this machine can run the app")
     args = parser.parse_args(argv)
+    ensure_homebrew_libraries(sys.argv[1:] if argv is None else argv)
     if args.command == "doctor":
         return doctor()
     return serve(args.port, not args.no_browser)

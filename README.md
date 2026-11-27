@@ -41,11 +41,7 @@ Check the machine setup:
 uv run recipebook doctor
 ```
 
-If the PDF engine check fails with a message about a library such as `libgobject`, Python cannot see Homebrew's libraries. Point it at them, then run the check again:
-
-```bash
-export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib
-```
+The app points itself at Homebrew's libraries when it starts, so no extra setup is needed after `brew install pango`.
 
 ## Test
 

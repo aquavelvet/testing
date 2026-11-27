@@ -19,6 +19,7 @@ dependencies = [
     "anthropic>=0.60",
     "keyring>=25",
     "ocrmac>=1.0; sys_platform == 'darwin'",
+    "segno>=1.6.6",
 ]
 
 [project.scripts]

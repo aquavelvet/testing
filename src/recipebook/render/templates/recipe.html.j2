@@ -1,3 +1,4 @@
+{% from "_recipe.html.j2" import recipe_section %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -19,60 +20,9 @@
   {% else %}
   @page recipe { @bottom-left { content: string(source); {{ footer_text }} } }
   {% endif %}
-  html { font-size: {{ body_pt }}pt; }
 </style>
 </head>
 <body>
-<section class="recipe {{ 'spread' if layout != 'page' }} {{ 'flow' if layout == 'flow' }}">
-  <p class="source">{{ recipe.source.credit() }}</p>
-  <div class="topline">
-    <span class="category">{{ recipe.category }}</span>
-    {% if recipe.id %}<span class="rid">No. {{ recipe.id }}</span>{% endif %}
-  </div>
-  <h1 class="title">{{ recipe.title }}</h1>
-  {% if recipe.headnote %}<p class="headnote">{{ recipe.headnote }}</p>{% endif %}
-  {% if meta %}
-  <div class="meta">
-    {% for label, value in meta %}<div><span class="k">{{ label }}</span><span class="v">{{ value }}</span></div>{% endfor %}
-  </div>
-  {% endif %}
-
-  {% macro ingredients() %}
-    <h2 class="label">Ingredients</h2>
-    <div class="groups">
-    {% for group in recipe.ingredient_groups %}
-      <div class="group">
-        {% if group.name %}<h3 class="group-name">{{ group.name }}</h3>{% endif %}
-        <ul class="ing">{% for item in group.items %}<li>{{ item.text }}</li>{% endfor %}</ul>
-      </div>
-    {% endfor %}
-    </div>
-  {% endmacro %}
-
-  {% macro directions() %}
-    <h2 class="label">Directions</h2>
-    <ol class="steps">
-    {% for step in recipe.steps %}<li>{% if step.lead %}<strong>{{ step.lead }}:</strong> {% endif %}{{ step.text }}</li>{% endfor %}
-    </ol>
-  {% endmacro %}
-
-  {% macro note() %}
-    {% if recipe.note %}<aside class="note"><p><span class="runin">Cook’s Note</span>{{ recipe.note }}</p></aside>{% endif %}
-  {% endmacro %}
-
-  {% if layout == 'page' %}
-    <div class="cols">
-      <div class="ingredients">{{ ingredients() }}</div>
-      <div class="directions">{{ directions() }}</div>
-    </div>
-    {{ note() }}
-  {% else %}
-    <div class="ingredients">{{ ingredients() }}</div>
-    <div class="directions-page">
-      {{ directions() }}
-      {{ note() }}
-    </div>
-  {% endif %}
-</section>
+{{ recipe_section(recipe, layout, body_pt, meta, notes_lines, qr_uri) }}
 </body>
 </html>

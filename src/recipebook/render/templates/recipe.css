@@ -24,7 +24,7 @@
   --rule: #c9d6d0;
 }
 
-html { color: var(--ink); font-family: "Body"; line-height: 1.38; }
+html { color: var(--ink); font-family: "Body"; font-size: 8.5pt; line-height: 1.38; }
 body { margin: 0; }
 
 .label {
@@ -95,3 +95,13 @@ ol.steps li strong { font-weight: 600; }
 /* Last resort for very long recipes: the same template, allowed to run on. */
 .flow .group { break-inside: auto; }
 .flow .groups { columns: 1; }
+
+/* ---------- Extras for one-page recipes with room to spare ---------- */
+.tail { display: table; width: 100%; margin-top: 6mm; }
+.tail .notes { display: table-cell; vertical-align: bottom; }
+.tail .notes .label { margin-bottom: 0; }
+.tail .notes .line { border-bottom: 0.5pt solid var(--rule); height: 7.2mm; }
+.tail .qr { display: table-cell; width: 17mm; vertical-align: bottom; padding-left: 6mm; text-align: center; }
+.tail .qr img { width: 17mm; height: 17mm; display: block; }
+.tail .qr-cap { font-family: "Label"; font-weight: 500; font-size: 5.4pt; letter-spacing: 0.14em;
+                text-transform: uppercase; color: var(--soft); margin-top: 1.2mm; white-space: nowrap; }

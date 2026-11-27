@@ -25,6 +25,18 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS layouts (
+    recipe_id INTEGER PRIMARY KEY,
+    key       TEXT NOT NULL,       -- what the layout was computed from
+    data      TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS editions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    title      TEXT NOT NULL,
+    file       TEXT NOT NULL,
+    data       TEXT NOT NULL       -- options, page count, report, and the page map
+);
 CREATE TABLE IF NOT EXISTS glossary (
     id        INTEGER PRIMARY KEY,
     preferred TEXT NOT NULL UNIQUE,
@@ -150,3 +162,38 @@ class Library:
                 "INSERT INTO glossary (preferred, variants) VALUES (?, ?)",
                 [(e.preferred, json.dumps(list(e.variants), ensure_ascii=False)) for e in entries],
             )
+
+    # ---- layout cache ----
+
+    def get_layout(self, recipe_id: int, key: str) -> dict | None:
+        with self._connect() as con:
+            row = con.execute("SELECT data FROM layouts WHERE recipe_id = ? AND key = ?", (recipe_id, key)).fetchone()
+        return json.loads(row["data"]) if row else None
+
+    def set_layout(self, recipe_id: int, key: str, data: dict) -> None:
+        with self._connect() as con:
+            con.execute(
+                "INSERT INTO layouts (recipe_id, key, data) VALUES (?, ?, ?) "
+                "ON CONFLICT(recipe_id) DO UPDATE SET key = excluded.key, data = excluded.data",
+                (recipe_id, key, json.dumps(data)),
+            )
+
+    # ---- editions: every exported book, with its page map ----
+
+    def add_edition(self, title: str, file: str, data: dict) -> int:
+        with self._connect() as con:
+            cursor = con.execute(
+                "INSERT INTO editions (created_at, title, file, data) VALUES (?, ?, ?, ?)",
+                (datetime.now(timezone.utc).isoformat(), title, file, json.dumps(data, ensure_ascii=False)),
+            )
+        return cursor.lastrowid
+
+    def editions(self) -> list[dict]:
+        """Newest first. Each has id, created_at, title, file, and the stored data fields."""
+        with self._connect() as con:
+            rows = con.execute("SELECT * FROM editions ORDER BY id DESC").fetchall()
+        return [{"id": r["id"], "created_at": r["created_at"], "title": r["title"], "file": r["file"],
+                 **json.loads(r["data"])} for r in rows]
+
+    def get_edition(self, edition_id: int) -> dict | None:
+        return next((e for e in self.editions() if e["id"] == edition_id), None)

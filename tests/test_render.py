@@ -4,7 +4,7 @@ from fontTools.ttLib import TTFont
 
 import samples
 from recipebook.model import Ingredient, IngredientGroup, Recipe, Step
-from recipebook.render.pdf import BINDINGS, FONTS, lay_out, recipe_html, render_recipe_pdf
+from recipebook.render.pdf import BINDINGS, FONTS, Layout, free_space_mm, lay_out, recipe_html, render_recipe_pdf
 from recipebook.style.numbers import UNICODE_FRACTIONS
 
 A5_PT = (419.5, 595.3)
@@ -119,7 +119,7 @@ def test_minimal_recipe_renders_without_optional_parts():
         ingredient_groups=[IngredientGroup(items=[Ingredient(text="2 slices bread")])],
         steps=[Step(text="Toast the bread.")],
     )
-    html = recipe_html(recipe, "page", 8.5, BINDINGS["none"], False)
+    html = recipe_html(recipe, Layout("page", 8.5, 1), BINDINGS["none"], False)
     assert "Toast &lt;b&gt;&amp; Jam&lt;/b&gt;" in html
     assert 'class="meta"' not in html and 'class="headnote"' not in html and 'class="note"' not in html
     assert "No. " not in html
@@ -137,3 +137,27 @@ def test_body_font_has_every_fraction_character():
 def test_fonts_ship_with_their_licenses():
     for family in ("CormorantGaramond", "SourceSerif4", "Jost"):
         assert (FONTS / f"OFL-{family}.txt").read_text().count("SIL Open Font License") >= 1
+
+
+def test_short_recipe_gets_notes_lines_and_a_qr_code():
+    plain, document = lay_out(samples.short())
+    free = free_space_mm(document)
+    assert free > 60 and plain.notes_lines == 0 and not plain.qr
+    layout, document = lay_out(samples.short(), notes=True, qr=True)
+    assert layout.kind == "page" and len(document.pages) == 1
+    assert layout.qr and 6 <= layout.notes_lines <= 16
+    assert free_space_mm(document) < 12  # the room was used
+    html = recipe_html(samples.short(), layout, BINDINGS["none"], False)
+    assert html.count('class="line"') == layout.notes_lines and "data:image/svg+xml" in html and "Original recipe" in html
+
+
+def test_extras_only_where_they_fit_and_belong():
+    full, document = lay_out(samples.medium(), notes=True, qr=True)
+    assert len(document.pages) == 1 and full.notes_lines == 0 and not full.qr  # the page is full
+    spread, _ = lay_out(samples.long(), notes=True, qr=True)
+    assert spread.kind == "spread" and spread.notes_lines == 0 and not spread.qr
+    card = samples.short().model_copy(update={"source": samples.medium().source})  # not a web source
+    layout, _ = lay_out(card, notes=True, qr=True)
+    assert layout.notes_lines > 0 and not layout.qr
+    only_qr, _ = lay_out(samples.short(), qr=True)
+    assert only_qr.qr and only_qr.notes_lines == 0

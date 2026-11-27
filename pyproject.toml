@@ -1,0 +1,42 @@
+[project]
+name = "recipebook"
+version = "0.1.0"
+description = "Turn recipes from URLs, PDFs, and cookbook photos into one house format and print them as A5 pages."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "pydantic>=2.7",
+    "python-multipart>=0.0.9",
+    "weasyprint>=63",
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "pypdfium2>=4",
+    "pillow>=10",
+    "pillow-heif>=0.16",
+    "anthropic>=0.60",
+    "keyring>=25",
+    "ocrmac>=1.0; sys_platform == 'darwin'",
+    "segno>=1.6.6",
+]
+
+[project.scripts]
+recipebook = "recipebook.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "fonttools>=4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/recipebook"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,13 @@
+<script>
+  // Show only the source fields that match the chosen kind.
+  (function () {
+    var kind = document.querySelector('select[name="source_kind"]');
+    function update() {
+      document.querySelectorAll('[data-kind]').forEach(function (label) {
+        label.hidden = label.dataset.kind !== kind.value;
+      });
+    }
+    kind.addEventListener('change', update);
+    update();
+  })();
+</script>

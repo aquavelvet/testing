@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Library · Recipe Book{% endblock %}
+{% block main %}
+<h1>Library</h1>
+
+{% if deleted %}<p class="notice">Recipe No. {{ deleted }} was deleted. Its number will not be used again.</p>{% endif %}
+
+{% if total %}
+<form method="get" action="/" class="search" role="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search titles, ingredients, tags, sources, or a recipe number" autocomplete="off" aria-label="Search recipes">
+</form>
+{% endif %}
+<div id="library-list">
+{% include "_library_list.html" %}
+</div>
+<script>
+  // Filter as you type. Without JavaScript the form still works by pressing Enter.
+  (function () {
+    var box = document.querySelector('.search input'), list = document.getElementById('library-list'), timer, latest = 0;
+    if (!box) return;
+    box.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        var mine = ++latest;
+        fetch('/search?q=' + encodeURIComponent(box.value)).then(function (r) { return r.text(); }).then(function (html) {
+          if (mine === latest) list.innerHTML = html;
+        });
+      }, 150);
+    });
+  })();
+</script>
+{% endblock %}

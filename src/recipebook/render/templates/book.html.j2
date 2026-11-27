@@ -1,0 +1,77 @@
+{% from "_recipe.html.j2" import recipe_section %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ book.title }}</title>
+<link rel="stylesheet" href="recipe.css">
+<link rel="stylesheet" href="book.css">
+<style>
+  @page { size: A5; margin: 12mm {{ binding.outer_mm }}mm 16mm {{ binding.inner_mm }}mm; }
+  {% set footer_text %}font-family: "Label"; font-size: 6.8pt; letter-spacing: 0.02em; color: var(--soft); vertical-align: top; padding-top: 3.5mm;{% endset %}
+  {% set footer_number %}font-family: "Label"; font-weight: 500; font-size: 7.5pt; color: var(--accent); vertical-align: top; padding-top: 3.5mm;{% endset %}
+  @page :left  { margin-left: {{ binding.outer_mm }}mm; margin-right: {{ binding.inner_mm }}mm;
+                 @bottom-left { content: counter(page); {{ footer_number }} } }
+  @page :right { margin-left: {{ binding.inner_mm }}mm; margin-right: {{ binding.outer_mm }}mm;
+                 @bottom-right { content: counter(page); {{ footer_number }} } }
+  @page recipe:left  { @bottom-right { content: string(source); {{ footer_text }} } }
+  @page recipe:right { @bottom-left  { content: string(source); {{ footer_text }} } }
+  @page cover   { margin: 13mm; @bottom-left { content: none; } @bottom-right { content: none; } }
+  @page divider { margin: 14mm; background: var(--tint); @bottom-left { content: none; } @bottom-right { content: none; } }
+</style>
+</head>
+<body>
+<section class="cover">
+  <div class="frame">
+    {% if book.kicker %}<div class="kicker">{{ book.kicker }}</div>{% endif %}
+    <h1 class="book-title">{{ book.title }}</h1>
+    <div class="orn"></div>
+    {% if book.subtitle %}<p class="book-sub">{{ book.subtitle }}</p>{% endif %}
+    {% if book.edition %}<div class="edition">{{ book.edition }}</div>{% endif %}
+  </div>
+</section>
+
+<section class="contents">
+  <h1 class="page-title">Contents</h1>
+  {% for section in sections %}
+  <a class="toc-cat" href="#{{ section.anchor }}">{{ section.name }}</a>
+  <ul class="toc-list">
+    {% for recipe in section.recipes %}<li><a href="#r{{ recipe.id }}">{{ recipe.title }}</a></li>{% endfor %}
+  </ul>
+  {% endfor %}
+  <a class="toc-cat" href="#index">Index</a>
+</section>
+
+{% for item in items %}
+  {% if item.kind == 'divider' %}
+  <section class="divider" id="{{ item.section.anchor }}">
+    <div class="part">Part {{ item.section.ordinal }}</div>
+    <h1 class="div-title">{{ item.section.name }}</h1>
+    <div class="orn"></div>
+    <ul class="div-list">
+      {% for recipe in item.section.recipes %}<li><a href="#r{{ recipe.id }}">{{ recipe.title }}</a></li>{% endfor %}
+    </ul>
+  </section>
+  {% elif item.kind == 'notes' %}
+  <section class="notes-page">
+    <div class="label">Notes</div>
+    {% for i in range(22) %}<div class="line"></div>{% endfor %}
+  </section>
+  {% else %}
+  {{ recipe_section(anchor='r' ~ item.recipe.id, **item.context) }}
+  {% endif %}
+{% endfor %}
+
+<section class="index" id="index">
+  <h1 class="page-title">Index</h1>
+  <div class="index-cols">
+  {% for letter, entries in index %}
+    <div class="idx-group">
+      <h2 class="idx-letter">{{ letter }}</h2>
+      {% for recipe in entries %}<p><a href="#r{{ recipe.id }}">{{ recipe.title }}</a></p>{% endfor %}
+    </div>
+  {% endfor %}
+  </div>
+</section>
+</body>
+</html>

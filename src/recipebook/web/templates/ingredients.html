@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Ingredient list · Recipe Book{% endblock %}
+{% block main %}
+<h1>Ingredient list</h1>
+{% if problem %}<p class="error">{{ problem }}</p>{% endif %}
+
+<form method="get" action="/ingredients" class="recipe-form">
+  <div class="row four">
+    <label>Pick by
+      <select name="mode">
+        <option value="pages" {{ 'selected' if mode == 'pages' }} {{ 'disabled' if not editions }}>Page numbers</option>
+        <option value="numbers" {{ 'selected' if mode == 'numbers' }}>Recipe numbers</option>
+      </select>
+    </label>
+    <label class="span3">Numbers <span class="hint">Separate with commas. Ranges work: 34, 36-37</span>
+      <input name="entry" value="{{ entry }}" autofocus placeholder="34, 36-37">
+    </label>
+  </div>
+  {% if editions %}
+  <label class="wide">Page numbers refer to
+    <select name="edition">
+      {% for e in editions %}<option value="{{ e.id }}" {{ 'selected' if e.id == edition_id }}>{{ e.title }}, exported {{ e.created_at[:10] }} ({{ e.pages }} pages){{ ' · latest' if loop.first }}</option>{% endfor %}
+    </select>
+  </label>
+  {% else %}
+  <p class="count">No book has been exported yet, so only recipe numbers work. The number is printed at the top right of every recipe page.</p>
+  {% endif %}
+  <div class="actions"><button type="submit" class="button primary">Make the list</button></div>
+</form>
+
+{% if skipped %}<p class="notice">No recipe on page{{ '' if skipped | length == 1 else 's' }} {{ skipped | join(', ') }}; skipped.</p>{% endif %}
+{% if missing %}<p class="notice">No recipe numbered {{ missing | join(', ') }}; skipped.</p>{% endif %}
+
+{% if merged %}
+<h2 class="section">For {{ recipes | length }} recipe{{ '' if recipes | length == 1 else 's' }}</h2>
+<ul class="recipes">
+  {% for r in recipes %}<li><span class="rid">No. {{ r.id }}</span><a class="name" href="/recipes/{{ r.id }}">{{ r.title }}</a><span></span></li>{% endfor %}
+</ul>
+
+<h2 class="section">What you need <button type="button" class="link" id="copy">Copy as text</button></h2>
+<ul class="needs">
+  {% for line in merged.needed %}<li><strong>{{ line.item }}</strong>{% if line.amounts %}: {{ line.amounts | join(' + ') }}{% endif %} <span class="via">{{ 'No.' if line.recipes | length == 1 else 'Nos.' }} {{ line.recipes | join(', ') }}</span></li>{% endfor %}
+</ul>
+{% if merged.optional %}
+<h2 class="section">Optional and for serving</h2>
+<ul class="needs">
+  {% for line in merged.optional %}<li><strong>{{ line.item }}</strong>{% if line.amounts %}: {{ line.amounts | join(' + ') }}{% endif %} <span class="via">{{ 'No.' if line.recipes | length == 1 else 'Nos.' }} {{ line.recipes | join(', ') }}</span></li>{% endfor %}
+</ul>
+{% endif %}
+{% if merged.as_written %}
+<h2 class="section">As written <span class="via">These lines could not be read into amounts</span></h2>
+<ul class="needs">{% for number, line in merged.as_written %}<li>{{ line }} <span class="via">No. {{ number }}</span></li>{% endfor %}</ul>
+{% endif %}
+<textarea id="plain" class="plain" rows="6" readonly>{{ text }}</textarea>
+<script>
+  document.getElementById('copy').addEventListener('click', function () {
+    var box = document.getElementById('plain'), button = this;
+    function done() { button.textContent = 'Copied'; setTimeout(function () { button.textContent = 'Copy as text'; }, 1500); }
+    if (navigator.clipboard) { navigator.clipboard.writeText(box.value).then(done, function () { box.select(); }); }
+    else { box.select(); document.execCommand('copy'); done(); }
+  });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,28 @@
+{% from "_recipe.html.j2" import recipe_section %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ recipe.title }}</title>
+<link rel="stylesheet" href="recipe.css">
+<style>
+  {# Page geometry is the same for every binding except how the side margins are split. #}
+  @page { size: A5; margin: 12mm {{ binding.outer_mm }}mm 16mm {{ binding.inner_mm }}mm; }
+  @page :left  { margin-left: {{ binding.outer_mm }}mm; margin-right: {{ binding.inner_mm }}mm; }
+  @page :right { margin-left: {{ binding.inner_mm }}mm; margin-right: {{ binding.outer_mm }}mm; }
+  {% set footer_text %}font-family: "Label"; font-size: 6.8pt; letter-spacing: 0.02em; color: var(--soft); vertical-align: top; padding-top: 3.5mm;{% endset %}
+  {% set footer_number %}font-family: "Label"; font-weight: 500; font-size: 7.5pt; color: var(--accent); vertical-align: top; padding-top: 3.5mm;{% endset %}
+  {% if page_numbers %}
+  @page recipe:left  { @bottom-left  { content: counter(page); {{ footer_number }} }
+                       @bottom-right { content: string(source); {{ footer_text }} } }
+  @page recipe:right { @bottom-right { content: counter(page); {{ footer_number }} }
+                       @bottom-left  { content: string(source); {{ footer_text }} } }
+  {% else %}
+  @page recipe { @bottom-left { content: string(source); {{ footer_text }} } }
+  {% endif %}
+</style>
+</head>
+<body>
+{{ recipe_section(recipe, layout, body_pt, meta, notes_lines, qr_uri) }}
+</body>
+</html>

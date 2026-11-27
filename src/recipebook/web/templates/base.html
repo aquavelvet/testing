@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% block head %}{% endblock %}
+<title>{% block title %}Recipe Book{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/">Recipe Book</a>
+  <nav>
+    <a href="/">Library</a>
+    <a href="/queue">Queue{% if review_count %} <span class="badge">{{ review_count }}</span>{% endif %}</a>
+    <a href="/ingredients">Ingredient list</a>
+    <a href="/book">Book</a>
+    <a href="/settings">Settings</a>
+    <a href="/recipes/new">Type one in</a>
+    <a class="button primary" href="/add">Add recipes</a>
+  </nav>
+</header>
+<main class="{% block main_class %}{% endblock %}">
+{% block main %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% if total == 0 %}
+<div class="empty">
+  <p>No recipes yet.</p>
+  <p><a class="button primary" href="/add">Add recipes from the web, PDFs, or photos</a>
+     <a class="button" href="/recipes/new">Type one in</a></p>
+</div>
+{% elif results is not none %}
+<p class="count">{{ results | length }} match{{ '' if results | length == 1 else 'es' }} for “{{ q }}”</p>
+{% if results %}
+<ul class="recipes">
+  {% for r in results %}
+  <li>
+    <span class="rid">No. {{ r.id }}</span>
+    <a class="name" href="/recipes/{{ r.id }}">{{ r.title }} <span class="via">{{ r.category }}</span></a>
+    <a class="pdf" href="/recipes/{{ r.id }}/pdf" target="_blank" rel="noopener">PDF</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="none">Nothing matches. Search looks at titles, ingredients, tags, sources, and recipe numbers.</p>
+{% endif %}
+{% else %}
+<p class="count">{{ total }} recipe{{ '' if total == 1 else 's' }}</p>
+{% for name, recipes in sections %}
+<section class="category">
+  <h2>{{ name }} <span class="n">{{ recipes | length }}</span></h2>
+  {% if recipes %}
+  <ul class="recipes">
+    {% for r in recipes %}
+    <li>
+      <span class="rid">No. {{ r.id }}</span>
+      <a class="name" href="/recipes/{{ r.id }}">{{ r.title }}</a>
+      <a class="pdf" href="/recipes/{{ r.id }}/pdf" target="_blank" rel="noopener">PDF</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="none">Nothing here yet.</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}

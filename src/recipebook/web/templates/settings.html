@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Settings · Recipe Book{% endblock %}
+{% block main %}
+<h1>Settings</h1>
+{% if saved %}<p class="notice">Settings saved.</p>{% endif %}
+{% if problem %}<p class="error">{{ problem }}</p>{% endif %}
+
+<form method="post" action="/settings" class="recipe-form">
+  <fieldset>
+    <legend>Reading recipes</legend>
+    <div class="row">
+      <label>Read new items with
+        <select name="default_structurer">
+          <option value="local" {{ 'selected' if default_structurer != 'claude' }}>Local model (stays on this Mac)</option>
+          <option value="claude" {{ 'selected' if default_structurer == 'claude' }}>Claude</option>
+        </select>
+      </label>
+      <label>Local model name <span class="hint">As Ollama knows it</span>
+        <input name="local_model" value="{{ local_model }}">
+      </label>
+    </div>
+    <label class="wide">Claude API key
+      <span class="hint">{% if key_source == 'keychain' %}A key is saved. It is kept in your Mac’s Keychain and never shown here. Type a new one to replace it.{% elif key_source == 'environment' %}Using the key from the ANTHROPIC_API_KEY setting in your Terminal. Removing it here has no effect; remove it from your Terminal setup instead, or type a key to save one in the Keychain.{% else %}No key saved. It will be kept in your Mac’s Keychain.{% endif %}</span>
+      <input type="password" name="claude_key" autocomplete="off" placeholder="{{ '••••••••' if has_key else 'sk-ant-…' }}">
+    </label>
+    {% if key_source == 'keychain' %}<label class="check"><input type="checkbox" name="clear_key" value="1"> Remove the saved key</label>{% endif %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Categories <span class="hint">Five, in book order. Renaming one moves its recipes with it.</span></legend>
+    <div class="row five">
+      {% for name in categories %}<label>{{ loop.index }}<input name="category" value="{{ name }}" required></label>{% endfor %}
+    </div>
+  </fieldset>
+
+  <label class="wide">Glossary <span class="hint">One per line: the name you prefer, a colon, then the names to replace.</span>
+    <textarea name="glossary" rows="14" spellcheck="false">{{ glossary }}</textarea>
+  </label>
+
+  <div class="actions"><button type="submit" class="button primary">Save settings</button></div>
+</form>
+{% endblock %}

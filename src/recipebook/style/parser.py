@@ -83,7 +83,7 @@ def parse_ingredient_line(line: str, glossary=DEFAULT_GLOSSARY) -> Ingredient:
     rest = after_unit
 
     if unit is not None and re.match(r"of\s", rest, re.IGNORECASE):
-        if quantity is not None or not unit.keeps_of:
+        if not unit.keeps_of:
             rest = rest[3:].lstrip()
 
     rest = apply_glossary(normalize_fractions(rest), glossary)

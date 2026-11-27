@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import threading
 import traceback
 from pathlib import Path
@@ -66,15 +67,21 @@ class Pipeline:
             advice = USE_CLAUDE if job.structurer == "local" else "Check that the input shows a whole recipe."
             return self._rest(job, "failed", "No recipe was found in this item.", advice)
 
+        if self.jobs.get(job.id) is None:
+            return job  # removed from the queue while it was being read; nothing to keep
         glossary = self.library.glossary()
+        read_images = job.structurer == "claude" and bool(material.images)
         for recipe in recipes:
             draft = finish_draft(recipe, material.text, glossary)
             extra = []
-            if material.kind != "url" and material.low_text():
+            if material.kind != "url" and material.low_text() and not read_images:
                 extra.append(Flag(kind="low_text", severity="warning", field=None,
                                   message="Very little text could be read; the photo may be blurry. Check every line."))
             extra += [Flag(kind="reader_note", severity="info", field=None, message=w) for w in material.warnings]
-            self.jobs.add_draft(job.id, draft.model_copy(update={"flags": extra + draft.flags}))
+            try:
+                self.jobs.add_draft(job.id, draft.model_copy(update={"flags": extra + draft.flags}))
+            except sqlite3.IntegrityError:
+                return job  # removed from the queue a moment ago
         count = len(recipes)
         return self._rest(job, "done", f"{count} recipe{'' if count == 1 else 's'} ready for review.", "")
 

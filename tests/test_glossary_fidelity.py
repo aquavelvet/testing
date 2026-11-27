@@ -17,6 +17,15 @@ def test_glossary_does_not_double_apply():
     assert apply_glossary("rolled oats") == "old-fashioned rolled oats"
 
 
+def test_glossary_never_changes_what_the_ingredient_is():
+    assert apply_glossary("quick-cooking rolled oats") == "quick-cooking rolled oats"
+    assert apply_glossary("imitation vanilla extract") == "imitation vanilla extract"
+    assert apply_glossary("sugar-free maple syrup") == "sugar-free maple syrup"
+    assert apply_glossary("rolled oats, plus maple syrup") == "old-fashioned rolled oats, plus pure maple syrup"
+    assert apply_glossary("salt or kosher salt") == "salt or coarse salt"  # same-length renames are always safe
+    assert apply_glossary("diamond crystal kosher salt") == "diamond crystal coarse salt"
+
+
 def test_glossary_needs_whole_words():
     assert apply_glossary("unwhite sugary") == "unwhite sugary"
 

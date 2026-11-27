@@ -32,6 +32,11 @@ def test_minutes():
     assert parse_minutes("3 hrs") == 180
     assert parse_minutes("") is None
     assert parse_minutes("soon") is None
+    assert parse_minutes("1 1/2 hours") == 90
+    assert parse_minutes("1½ hours") == 90
+    assert parse_minutes("1/2 hour") == 30
+    assert parse_minutes("1.5 hours") == 90
+    assert parse_minutes("2 hours 15 min") == 135
 
 
 def test_missing_for_save():

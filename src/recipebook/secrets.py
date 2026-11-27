@@ -9,14 +9,22 @@ ACCOUNT = "claude-api-key"
 
 
 class KeychainStore:
-    def get(self) -> str | None:
+    def _saved(self) -> str | None:
         try:
             import keyring
 
-            saved = keyring.get_password(SERVICE, ACCOUNT)
+            return keyring.get_password(SERVICE, ACCOUNT) or None
         except Exception:
-            saved = None
-        return saved or os.environ.get("ANTHROPIC_API_KEY") or None
+            return None
+
+    def get(self) -> str | None:
+        return self._saved() or os.environ.get("ANTHROPIC_API_KEY") or None
+
+    def source(self) -> str | None:
+        """'keychain', 'environment' (ANTHROPIC_API_KEY), or None."""
+        if self._saved():
+            return "keychain"
+        return "environment" if os.environ.get("ANTHROPIC_API_KEY") else None
 
     def set(self, key: str) -> None:
         import keyring
@@ -35,11 +43,17 @@ class KeychainStore:
 class MemoryStore:
     """For tests."""
 
-    def __init__(self, key: str | None = None):
+    def __init__(self, key: str | None = None, environment: str | None = None):
         self._key = key
+        self._environment = environment
 
     def get(self) -> str | None:
-        return self._key
+        return self._key or self._environment
+
+    def source(self) -> str | None:
+        if self._key:
+            return "keychain"
+        return "environment" if self._environment else None
 
     def set(self, key: str) -> None:
         self._key = key.strip()

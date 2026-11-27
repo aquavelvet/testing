@@ -68,5 +68,31 @@ def apply_glossary(text: str, entries=DEFAULT_GLOSSARY) -> str:
         text = pattern(entry.preferred).sub(hold(entry.preferred), text)
     pairs = [(variant, entry.preferred) for entry in entries for variant in entry.variants]
     for variant, preferred in sorted(pairs, key=lambda pair: len(pair[0]), reverse=True):
-        text = pattern(variant).sub(hold(preferred), text)
+        if _adds_words(variant, preferred):
+            text = pattern(variant).sub(_only_when_unqualified(text, hold(preferred)), text)
+        else:
+            text = pattern(variant).sub(hold(preferred), text)
     return re.sub(r"\x00(\d+)\x00", lambda m: slots[int(m.group(1))], text)
+
+
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"[a-z]+", text.lower()))
+
+
+def _adds_words(variant: str, preferred: str) -> bool:
+    """True when the preferred name is the variant plus more words ("vanilla extract" ->
+    "pure vanilla extract"). Such a rename is only safe on a bare mention."""
+    return _words(variant) < _words(preferred)
+
+
+def _only_when_unqualified(_original: str, replace):
+    """Replace only when nothing describes the ingredient first. "Imitation vanilla extract"
+    and "quick-cooking rolled oats" are different ingredients and must stay as written."""
+
+    def _replace(match: re.Match) -> str:
+        before = match.string[:match.start()].rstrip()
+        if not before or before[-1] in "(,;:" or re.search(r"(?:^|\s)(?:and|or|plus)$", before, re.IGNORECASE):
+            return replace(match)
+        return match.group(0)
+
+    return _replace

@@ -61,7 +61,11 @@ def _find_recipe(node):
         kinds = kind if isinstance(kind, list) else [kind]
         if "Recipe" in kinds:
             return node
-        return _find_recipe(node.get("@graph"))
+        for value in node.values():  # @graph, mainEntity, and other wrappers
+            if isinstance(value, (dict, list)):
+                found = _find_recipe(value)
+                if found:
+                    return found
     return None
 
 

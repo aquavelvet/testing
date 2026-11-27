@@ -23,6 +23,7 @@
   </div>
 
   <fieldset>
+    <input type="hidden" name="categories_shown" value="1">
     <legend>What goes in <span class="hint">{{ total }} saved recipe{{ '' if total == 1 else 's' }} in the library</span></legend>
     {% for name in categories %}
     <label class="check"><input type="checkbox" name="categories" value="{{ name }}"

@@ -182,3 +182,13 @@ def test_glossary_text_round_trip():
     entries = glossary_from_text("coarse salt: kosher salt, rock salt\nParmesan:\n\n : orphan")
     assert [(e.preferred, e.variants) for e in entries] == [("coarse salt", ("kosher salt", "rock salt")), ("Parmesan", ())]
     assert glossary_from_text(glossary_to_text(entries)) == entries
+
+
+def test_settings_explain_a_key_from_the_environment(tmp_path):
+    keys = MemoryStore(environment="sk-from-terminal")
+    app = create_app(Home(tmp_path / "RB"), key_store=keys, start_worker=False)
+    page_html = TestClient(app, base_url="http://127.0.0.1:8765").get("/settings").text
+    assert "ANTHROPIC_API_KEY" in page_html and "Remove the saved key" not in page_html
+    keys.set("sk-saved")
+    page_html = TestClient(app, base_url="http://127.0.0.1:8765").get("/settings").text
+    assert "Remove the saved key" in page_html and "A key is saved" in page_html

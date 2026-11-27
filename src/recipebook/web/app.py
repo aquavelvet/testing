@@ -428,6 +428,8 @@ def create_app(
     async def make_book(request: Request):
         form = await request.form()
         chosen = [str(name) for name in form.getlist("categories")]
+        if form.get("categories_shown") and not chosen:
+            return book_page(status=422, problem="Pick at least one category to put in the book.")
         options = BookOptions(
             title=(form.get("title") or "").strip() or "Recipes",
             subtitle=(form.get("subtitle") or "").strip(),
@@ -470,7 +472,7 @@ def create_app(
                     glossary=glossary_to_text(library.glossary()),
                     local_model=library.get_setting("local_model", DEFAULT_LOCAL_MODEL),
                     default_structurer=library.get_setting("default_structurer", "local"),
-                    has_key=bool(keys.get()), **context)
+                    has_key=bool(keys.get()), key_source=keys.source(), **context)
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_form(saved: str = ""):

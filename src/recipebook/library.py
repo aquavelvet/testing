@@ -229,6 +229,10 @@ class Library:
             if summary.category in renames:
                 recipe = self.get(summary.id)
                 self.save(recipe.model_copy(update={"category": renames[summary.category]}))
+        book = self.get_setting("book_options")
+        if book and book.get("categories"):
+            book["categories"] = [renames.get(name, name) for name in book["categories"]]
+            self.set_setting("book_options", book)
         self.set_setting("categories", names)
 
     # ---- glossary ----

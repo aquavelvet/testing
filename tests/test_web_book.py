@@ -55,3 +55,11 @@ def test_missing_edition_file(ctx):
     for path in home.exports.glob("*.pdf"):
         path.unlink()
     assert client.get("/editions/1/pdf").status_code == 404
+
+
+def test_unchecking_every_category_is_refused(ctx):
+    client, _, library = ctx
+    response = client.post("/book", data={"title": "Nothing", "categories_shown": "1"})
+    assert response.status_code == 422 and "Pick at least one category" in response.text
+    assert library.editions() == []
+    assert 'name="categories_shown"' in client.get("/book").text

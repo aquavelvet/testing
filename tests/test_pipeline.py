@@ -151,3 +151,27 @@ def test_worker_thread_processes_the_queue(setup):
         assert jobs.get(job.id).state == "done"
     finally:
         worker.stop()
+
+
+def test_job_removed_while_being_read_is_dropped_quietly(setup):
+    pipeline, jobs, structurers, _ = setup
+    job = url_job(jobs)
+
+    class RemovesItself(FakeStructurer):
+        def structure(self, material, categories, glossary):
+            jobs.delete(job.id)  # the user clicks Remove while the model is working
+            return super().structure(material, categories, glossary)
+
+    structurers["local"] = RemovesItself()
+    other = url_job(jobs)
+    assert pipeline.run_pending() is False  # no exception escapes, so the next job still runs
+    assert jobs.get(job.id) is None and jobs.get(other.id).state == "done"
+
+
+def test_blur_warning_only_when_text_recognition_was_relied_on(setup):
+    pipeline, jobs, _, tmp_path = setup
+    photo = tmp_path / "IMG_2.png"
+    Image.new("RGB", (200, 100), "white").save(photo)
+    claude_job = pipeline.process(jobs.add(Job(kind="photo", label="IMG_2.png", files=[str(photo)], structurer="claude")))
+    [draft] = jobs.drafts_for(claude_job.id)
+    assert "low_text" not in [f.kind for f in draft.recipe.flags]

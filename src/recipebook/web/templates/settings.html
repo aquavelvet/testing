@@ -20,10 +20,10 @@
       </label>
     </div>
     <label class="wide">Claude API key
-      <span class="hint">{% if has_key %}A key is saved. It is kept in your Mac’s Keychain and never shown here. Type a new one to replace it.{% else %}No key saved. It will be kept in your Mac’s Keychain.{% endif %}</span>
+      <span class="hint">{% if key_source == 'keychain' %}A key is saved. It is kept in your Mac’s Keychain and never shown here. Type a new one to replace it.{% elif key_source == 'environment' %}Using the key from the ANTHROPIC_API_KEY setting in your Terminal. Removing it here has no effect; remove it from your Terminal setup instead, or type a key to save one in the Keychain.{% else %}No key saved. It will be kept in your Mac’s Keychain.{% endif %}</span>
       <input type="password" name="claude_key" autocomplete="off" placeholder="{{ '••••••••' if has_key else 'sk-ant-…' }}">
     </label>
-    {% if has_key %}<label class="check"><input type="checkbox" name="clear_key" value="1"> Remove the saved key</label>{% endif %}
+    {% if key_source == 'keychain' %}<label class="check"><input type="checkbox" name="clear_key" value="1"> Remove the saved key</label>{% endif %}
   </fieldset>
 
   <fieldset>

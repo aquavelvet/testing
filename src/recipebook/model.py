@@ -129,9 +129,7 @@ def format_minutes(minutes: int | None) -> str:
     return " ".join(parts)
 
 
-_DURATION_PART = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?|m)\b", re.IGNORECASE
-)
+_DURATION_UNIT = re.compile(r"\s*(hours?|hrs?|h|minutes?|mins?|m)\b", re.IGNORECASE)
 
 
 def parse_minutes(text: str) -> int | None:
@@ -144,9 +142,21 @@ def parse_minutes(text: str) -> int | None:
         return int(clock.group(1)) * 60 + int(clock.group(2))
     if re.fullmatch(r"\d+", text):
         return int(text)
-    total = 0.0
+    from .style.numbers import QUANTITY_RE, parse_quantity_prefix
+
+    total = Fraction(0)
     found = False
-    for value, unit in _DURATION_PART.findall(text):
-        found = True
-        total += float(value) * (60 if unit.startswith("h") else 1)
+    position = 0
+    while True:
+        match = QUANTITY_RE.search(text, position)
+        if not match:
+            break
+        value, _upper, _rest = parse_quantity_prefix(text[match.start():])
+        unit = _DURATION_UNIT.match(text, match.end())
+        if value is not None and unit:
+            found = True
+            total += value * (60 if unit.group(1).startswith("h") else 1)
+            position = unit.end()
+        else:
+            position = match.end()
     return round(total) if found else None

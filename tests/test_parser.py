@@ -20,7 +20,7 @@ from recipebook.style.parser import parse_ingredient_line as parse
     ("- 2 cups sugar", "2 cups sugar"),
     ("• ¾ tsp kosher salt", "¾ teaspoon coarse salt"),
     ("pinch of salt", "Pinch of salt"),
-    ("1 pinch of salt", "1 pinch salt"),
+    ("1 pinch of salt", "1 pinch of salt"),
     ("vanilla ice cream, for serving", "Vanilla ice cream, for serving"),
     ("1 (15-ounce) can pumpkin puree", "1 (15-ounce) can pumpkin puree"),
     ("3 to 4 Tbsp ice water", "3 to 4 tablespoons ice water"),
